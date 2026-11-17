@@ -14,6 +14,27 @@
 <link rel="stylesheet" href="css/motion.css?v=61a0c3ec64">
 <script>document.documentElement.classList.add('js');</script>
 <script>
+/* Always the newest version (Maxx 2026-11-17: "in a normal tab the site isn't the same"). GitHub Pages lets a browser
+   keep the page for 10 minutes, and an open tab never sees an update. This asks the server, past every cache, which
+   build is live; if this page is older, it refreshes the browser's copy and reloads once. Bump AIOS_BUILD and
+   version.json together on every deploy. */
+(function () {
+  var BUILD = '2026-11-17.3'; window.AIOS_BUILD = BUILD;
+  if (!window.fetch || location.protocol === 'file:') return;
+  function check() {
+    fetch('version.json?nc=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+      if (!j || !j.build || j.build === BUILD) return;
+      var k = 'aios-updated-' + j.build;
+      try { if (sessionStorage.getItem(k)) return; sessionStorage.setItem(k, '1'); } catch (e) { return; }
+      fetch(location.href.split('#')[0], { cache: 'reload' }).catch(function () {}).then(function () { location.reload(); });
+    }).catch(function () {});
+  }
+  check();
+  /* a tab left open: check again when you come back to it (your place in the install is saved, so a reload loses nothing) */
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') check(); });
+})();
+</script>
+<script>
 /* Page changes run in the direction you travel. What AIOS does, Install AIOS, The Playbook, Get help: that order is forward.
    Forward is slower and has more going on; back is the same movement reversed, and quicker. (css/motion.css) */
 (function () {
