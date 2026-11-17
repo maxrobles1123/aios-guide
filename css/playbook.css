@@ -557,3 +557,25 @@ details.help > summary { font-size: 18px; padding: 14px 0; }
 .screen > .wrap > .quick:first-child { margin-top: 0; }
 
 @media print { @page { margin: 10mm 12mm; } body.print-qr .qr { font-size: 8.5pt; } body.print-qr .qr td { padding: 1.8px 10px 1.8px 0; line-height: 1.25; } body.print-qr .qr .qr-agent th { padding: 4px 0 1px; font-size: 11pt; } body.print-qr .sub { font-size: 9pt; margin-top: 2px; } body.print-qr .helpsec, body.print-qr .step-nav { display: none !important; } }
+
+/* ---------- v3.1 (2026-11-17): Kareem's tabs, one per step; and Install AIOS at the end ---------- */
+/* Kareem's Playbook moves between agents with a row of tabs. Ours keeps one step per screen and makes the steps the
+   tabs, so you can jump to any agent and still see where you are. The step count and segment bar are dropped: the tabs
+   say the same thing (and mrhsi's rule is no progress bars). */
+.progress .here, .progress .segs { display: none; }
+.progress .wrap { padding-top: 0; padding-bottom: 0; }
+.pb-tabs { margin: 0 calc(-1 * var(--gutter)); }
+.pb-tabs-track { position: relative; display: flex; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; padding: 0 var(--gutter); }
+.pb-tabs-track::-webkit-scrollbar { display: none; }
+.pb-tab { position: relative; flex: 1 0 auto; min-height: 56px; padding: 0 18px; border: 0; background: none; font: 600 16px/1.2 var(--font-text); color: var(--muted); cursor: pointer; white-space: nowrap; transition: color 400ms var(--ease), background-color 400ms var(--ease); }
+.pb-tab[aria-current="step"] { color: var(--ink); background: var(--mint-tint); }
+@media (hover: hover) and (pointer: fine) { .pb-tab:hover { color: var(--ink); background: rgba(116, 238, 199, 0.16); } }
+.pb-ink { position: absolute; left: 0; bottom: 0; height: 3px; width: var(--w, 0); background: var(--ink); transform: translate3d(var(--x, 0), 0, 0); transition: transform 700ms var(--ease), width 700ms var(--ease); pointer-events: none; }
+@media (max-width: 700px) { .pb-tab { flex: 0 0 auto; padding: 0 14px; font-size: 15px; } }
+
+.install-cta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 18px 28px; margin-top: clamp(40px, 5vw, 64px); padding: clamp(22px, 3vw, 34px); background: var(--mint); border: 1.5px solid var(--ink); }
+.install-cta .ic-k { margin: 0; font: 400 clamp(28px, 3.4vw, 38px)/1.08 var(--font-display); color: var(--ink); }
+.install-cta .ic-lead { margin: 8px 0 0; max-width: 46ch; color: var(--ink); }
+.install-cta .btn-black { --edge3d: var(--surface); }
+.btn .arw { display: inline-grid; place-items: center; width: 18px; height: 18px; }
+@media (prefers-reduced-motion: reduce) { .pb-ink { transition: none; } }

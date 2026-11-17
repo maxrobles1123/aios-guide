@@ -9,8 +9,29 @@
 <link rel="preload" href="fonts/newsreader-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="icon" href="img/logo-mark.png">
 <meta name="robots" content="noindex, nofollow">
-<link rel="stylesheet" href="css/guide.css?v=20">
-<link rel="stylesheet" href="css/motion.css?v=1">
+<link rel="stylesheet" href="css/guide.css?v=21">
+<link rel="stylesheet" href="css/motion.css?v=7">
+<script>
+/* Page changes run in the direction you travel. What AIOS does, Install AIOS, The Playbook, Get help: that order is forward.
+   Forward is slower and has more going on; back is the same movement reversed, and quicker. (css/motion.css) */
+(function () {
+  var O = { what: 0, install: 1, playbook: 2, help: 3 };
+  function v(u) {
+    try { u = new URL(u, location.href); } catch (e) { return null; }
+    if (/playbook\.html$/.test(u.pathname)) return 'playbook';
+    var h = (u.hash || '#what').slice(1);
+    return h.indexOf('help') === 0 ? 'help' : h.indexOf('install') === 0 ? 'install' : 'what';
+  }
+  window.AIOS_VIEW = { order: O, of: v };
+  addEventListener('pagereveal', function (e) {
+    if (!e.viewTransition) return;
+    var f = window.navigation && navigation.activation && navigation.activation.from, a = f ? v(f.url) : null, b = v(location.href);
+    document.documentElement.setAttribute('data-vt', a !== null && O[b] < O[a] ? 'back' : 'fwd');
+    e.viewTransition.ready.catch(function () {});
+    e.viewTransition.finished.finally(function () { document.documentElement.removeAttribute('data-vt'); });
+  });
+})();
+</script>
 </head>
 <body>
 <a class="skip-link" id="skip" href="#install">Skip to the main content</a>
@@ -95,7 +116,7 @@
     </div>
   </div>
 
-  <div class="section section-white">
+  <div class="section section-white" id="what-agents">
     <div class="wrap">
       <h2>Four AI agents. One AIOS.</h2>
       <div class="agents-layout">
@@ -105,13 +126,13 @@
         <p class="hint"><b>Scroll</b> to meet each agent</p>
       </div>
       <div class="agents">
-        <div class="agent"><div class="icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#141414" stroke-width="1.5" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="1"/><path d="M3.5 9.5h17M8 3v4M16 3v4M9 14.5l2 2 4-4"/></svg></div><h3>Chief of Staff</h3><p class="line">Start each day knowing where to focus.</p><p>Your Chief of Staff helps organize your day and week around appointments, priorities and commitments.</p></div>
-        <div class="agent"><div class="icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#141414" stroke-width="1.5" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c0-3 2.5-5.2 5.5-5.2s5.5 2.2 5.5 5.2"/><circle cx="16.5" cy="9" r="2.6"/><path d="M16 13.9c2.6 0 4.5 2 4.5 4.6"/></svg></div><h3>Prospecting Agent</h3><p class="line">Keep relationships moving.</p><p>Find people worth contacting, prepare thoughtful follow-ups and respond to new inquiries without starting from a blank page.</p></div>
-        <div class="agent"><div class="icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#141414" stroke-width="1.5" aria-hidden="true"><path d="M4 10v4h3l7 4V6l-7 4H4z"/><path d="M7 14l1.5 4.5h2L9.5 14.6"/><path d="M17.5 9.5c1 .7 1.5 1.6 1.5 2.5s-.5 1.8-1.5 2.5"/></svg></div><h3>Marketing Agent</h3><p class="line">Create marketing that reflects the home and your voice.</p><p>From listing descriptions to property campaigns and video scripts, AIOS uses the facts you've confirmed.</p></div>
-        <div class="agent"><div class="icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#141414" stroke-width="1.5" aria-hidden="true"><rect x="5" y="4.5" width="14" height="16" rx="1"/><path d="M9 3.5h6v3H9zM9 13l2 2 4-4"/></svg></div><h3>Client Experience Agent</h3><p class="line">Walk into appointments prepared and follow through afterward.</p><p>Turn meeting recordings or spoken debriefs into notes, recap drafts and a clearer picture of what comes next.</p></div>
+        <div class="agent"><div class="icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#141414" stroke-width="1.5" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="1"/><path d="M3.5 9.5h17M8 3v4M16 3v4M9 14.5l2 2 4-4"/></svg></div><h3>Chief of Staff</h3><p class="line">Start each day knowing where to focus.</p><p>Your Chief of Staff helps organize your day and week around appointments, priorities and commitments.</p><a class="agent-link" href="playbook.html?from=agents#step-3">What to type for your Chief of Staff<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg></a></div>
+        <div class="agent"><div class="icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#141414" stroke-width="1.5" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c0-3 2.5-5.2 5.5-5.2s5.5 2.2 5.5 5.2"/><circle cx="16.5" cy="9" r="2.6"/><path d="M16 13.9c2.6 0 4.5 2 4.5 4.6"/></svg></div><h3>Prospecting Agent</h3><p class="line">Keep relationships moving.</p><p>Find people worth contacting, prepare thoughtful follow-ups and respond to new inquiries without starting from a blank page.</p><a class="agent-link" href="playbook.html?from=agents#step-4">What to type for your Prospecting<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg></a></div>
+        <div class="agent"><div class="icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#141414" stroke-width="1.5" aria-hidden="true"><path d="M4 10v4h3l7 4V6l-7 4H4z"/><path d="M7 14l1.5 4.5h2L9.5 14.6"/><path d="M17.5 9.5c1 .7 1.5 1.6 1.5 2.5s-.5 1.8-1.5 2.5"/></svg></div><h3>Marketing Agent</h3><p class="line">Create marketing that reflects the home and your voice.</p><p>From listing descriptions to property campaigns and video scripts, AIOS uses the facts you've confirmed.</p><a class="agent-link" href="playbook.html?from=agents#step-6">What to type for your Marketing<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg></a></div>
+        <div class="agent"><div class="icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#141414" stroke-width="1.5" aria-hidden="true"><rect x="5" y="4.5" width="14" height="16" rx="1"/><path d="M9 3.5h6v3H9zM9 13l2 2 4-4"/></svg></div><h3>Client Experience Agent</h3><p class="line">Walk into appointments prepared and follow through afterward.</p><p>Turn meeting recordings or spoken debriefs into notes, recap drafts and a clearer picture of what comes next.</p><a class="agent-link" href="playbook.html?from=agents#step-5">What to type for your Client Experience<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg></a></div>
       </div>
       </div>
-      <p style="margin-top:28px"><a class="btn btn-outline" href="playbook.html">See what you can do with each agent</a></p>
+      <p style="margin-top:28px"><a class="btn btn-outline" href="playbook.html?from=agents#step-3">See what you can do with each agent</a></p>
     </div>
   </div>
 
@@ -158,7 +179,7 @@
         <span class="where" id="here-where">Getting ready</span>
         <span class="count" id="here-count">0 of 31 steps done</span>
       </div>
-      <div class="bar" role="progressbar" aria-label="Steps done" aria-valuemin="0" aria-valuemax="31" aria-valuenow="0" id="bar"><i></i></div>
+      <div class="bar" role="progressbar" aria-label="Steps done" aria-valuemin="0" aria-valuemax="24" aria-valuenow="0" id="bar"><i></i></div>
       <ul class="parts" id="parts"></ul>
       <div class="tools">
         <button type="button" class="btn btn-quiet" id="toggle-all" aria-expanded="false" aria-controls="all-steps">See all steps</button>
@@ -168,14 +189,24 @@
       </div>
     </div>
   </div>
-  <div class="all-steps" id="all-steps" hidden>
-    <!-- On narrow screens and at 200% zoom, "Larger text" and "Clear my ticks" live here instead of in the strip. -->
-    <div class="wrap panel-tools">
+  <!-- All steps: a see-through panel that slides in from the right, over the page. The box ticks; the words go to the step. -->
+  <div class="as-scrim" id="as-scrim" aria-hidden="true"></div>
+  <aside class="all-steps" id="all-steps" aria-label="All steps" aria-hidden="true" inert>
+    <div class="as-head">
+      <div><p class="as-k">All steps</p><p class="as-count" id="as-count">0 of 24 steps ticked</p></div>
+      <button type="button" class="btn btn-quiet" id="as-close" data-kind="back">Close</button>
+    </div>
+    <div class="as-bar" aria-hidden="true"><i id="as-bar"></i></div>
+    <p class="as-tip">Tick a box to mark a step done. Click the words to go to that step.</p>
+    <div id="all-steps-list"></div>
+    <div class="panel-tools">
       <button type="button" class="btn btn-quiet big-toggle" data-big aria-pressed="false"><span class="bx" aria-hidden="true"></span>Larger text</button>
       <button type="button" class="btn btn-quiet" data-clear>Clear my ticks</button>
     </div>
-    <div class="wrap" id="all-steps-list"></div>
-  </div>
+  </aside>
+  <button type="button" class="steps-pill" id="steps-pill" aria-controls="all-steps" aria-expanded="false">
+    <span class="sp-ring" aria-hidden="true"></span><span class="sp-t">All steps</span><span class="sp-n" id="steps-pill-n">0 of 24</span>
+  </button>
   <div class="wrap screen-wrap">
     <div class="welcome" id="welcome" role="status" hidden></div>
     <div class="reward" id="reward" aria-hidden="true" hidden>
@@ -330,12 +361,12 @@
 <div class="sr-only" aria-live="assertive" id="announce"></div>
 
 <script src="js/config.js?v=21"></script>
-<script src="js/steps.js?v=20"></script>
-<script src="js/guide.js?v=21"></script>
+<script src="js/steps.js?v=22"></script>
+<script src="js/guide.js?v=24"></script>
 <script src="vendor/gsap.min.js"></script>
 <script src="vendor/ScrollTrigger.min.js"></script>
 <script src="vendor/CustomEase.min.js"></script>
 <script src="vendor/lenis.min.js"></script>
-<script src="js/motion.js?v=1"></script>
+<script src="js/motion.js?v=5"></script>
 </body>
 </html>

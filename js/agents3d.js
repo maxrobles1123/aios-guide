@@ -14,7 +14,7 @@ import {
   RoundedBoxGeometry
 } from '../vendor/three-lite.min.js';
 
-const INK = 0xcfc8ba, MINT = 0x74eec7, PAGE = 0xffffff;
+const INK = 0xa39b8c, MINT = 0x5fe6bb, PAGE = 0xffffff;   /* a warm mid-tone edge: reads as depth, not as a black line */
 const W = 1.5, H = 2.0, D = 0.1;
 
 export async function start(host, cards, state) {
@@ -26,17 +26,17 @@ export async function start(host, cards, state) {
   const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
   renderer.setClearColor(0x000000, 0);
   const scene = new Scene();
-  scene.fog = new Fog(PAGE, 8.4, 14);
+  scene.fog = new Fog(PAGE, 10.5, 19);   /* pushed back: only the farthest tile softens */
   const camera = new PerspectiveCamera(30, 1, 0.1, 50);
-  camera.position.set(0, 0.1, 6.3);
+  camera.position.set(0, 0.1, 6.9);
 
-  scene.add(new AmbientLight(0xffffff, 1.35));
-  const key = new DirectionalLight(0xffffff, 1.6); key.position.set(-3, 4, 6); scene.add(key);
+  scene.add(new AmbientLight(0xffffff, 0.95));
+  const key = new DirectionalLight(0xffffff, 2.4); key.position.set(-3, 4, 6); scene.add(key);
   const spot = new SpotLight(0xfff6e6, 40, 22, Math.PI / 5, 0.7, 1.2); spot.position.set(3.5, 3, 7); scene.add(spot);
 
   /* ---- the tile faces, drawn from the cards ---- */
   await Promise.all([
-    document.fonts.load('400 64px Newsreader'), document.fonts.load('600 30px "Hanken Grotesk"'), document.fonts.load('400 30px "Hanken Grotesk"')
+    document.fonts.load('400 64px Newsreader'), document.fonts.load('600 30px "Hanken Grotesk"'), document.fonts.load('800 30px "Hanken Grotesk"'), document.fonts.load('500 64px Newsreader')
   ]).catch(() => {});
   const faces = await Promise.all(cards.map((card, i) => drawFace(card, i, renderer)));
 
@@ -45,9 +45,10 @@ export async function start(host, cards, state) {
   const faceGeo = new PlaneGeometry(W - 0.035, H - 0.035);
   const tiles = faces.map((tex, i) => {
     const g = new Group();
-    const bodyMat = new MeshStandardMaterial({ color: INK, roughness: 0.45, metalness: 0.05 });
+    const bodyMat = new MeshStandardMaterial({ color: INK, roughness: 0.38, metalness: 0.08 });
     const body = new Mesh(bodyGeo, bodyMat);
-    const faceMat = new MeshStandardMaterial({ map: tex, emissiveMap: tex, emissive: 0xffffff, emissiveIntensity: 0.38, roughness: 0.82, transparent: true, alphaTest: 0.5 });
+    /* The face is unlit (Maxx, 2026-11-17: "a little faded"): the lights shape the tile's body, the words stay full black on white. */
+    const faceMat = new MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.5 });
     const face = new Mesh(faceGeo, faceMat); face.position.z = D / 2 + 0.003;
     g.add(body, face); g.userData = { i, bodyMat, cur: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } };
     body.userData.tile = g; face.userData.tile = g;
@@ -56,7 +57,7 @@ export async function start(host, cards, state) {
 
   /* a soft shadow under the stack */
   const shTex = shadowTexture();
-  const shadow = new Mesh(new PlaneGeometry(6.5, 2.2), new MeshBasicMaterial({ map: shTex, transparent: true, depthWrite: false, opacity: 0.55 }));
+  const shadow = new Mesh(new PlaneGeometry(6.5, 2.2), new MeshBasicMaterial({ map: shTex, transparent: true, depthWrite: false, opacity: 0.8 }));
   shadow.rotation.x = -Math.PI / 2; shadow.position.y = -1.32; scene.add(shadow);
 
   /* ---- size ---- */
@@ -67,7 +68,7 @@ export async function start(host, cards, state) {
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
     /* keep a whole tile and a half each side in frame, whatever the shape of the box */
-    camera.position.z = camera.aspect < 0.9 ? 6.3 / Math.max(camera.aspect, 0.55) * 0.86 : 6.3;
+    camera.position.z = camera.aspect < 0.9 ? 6.9 / Math.max(camera.aspect, 0.55) * 0.86 : 6.9;
     camera.updateProjectionMatrix();
   }
   size();
@@ -96,7 +97,7 @@ export async function start(host, cards, state) {
     // the fan: the agent being read faces you; the others step back and turn away (a carousel told by scroll)
     const d = i - f, ad = Math.abs(d), sg = Math.sign(d);
     const fan = {
-      x: sg * (ad < 1 ? ad * 1.32 : 1.32 + (ad - 1) * 0.62),
+      x: sg * (ad < 1 ? ad * 1.12 : 1.12 + (ad - 1) * 0.48),   /* tight enough that the neighbours stay inside the frame */
       y: -Math.min(ad, 2) * 0.05,
       z: -Math.min(ad, 2.4) * 1.05,
       rx: 0.02,
@@ -162,30 +163,31 @@ function drawFace(card, i, renderer) {
 
   // the face: warm white, rounded to match the tile's corners
   const r = 16 * S;
-  x.fillStyle = '#fffdf8'; roundRect(x, 0, 0, cw, ch, r); x.fill();
+  x.fillStyle = '#ffffff'; roundRect(x, 0, 0, cw, ch, r); x.fill();
   // the brand's two mint corner squares (as on the hero photo)
   x.save(); roundRect(x, 0, 0, cw, ch, r); x.clip();
-  x.fillStyle = '#74eec7'; x.fillRect(cw - 34 * S, 0, 34 * S, 34 * S); x.fillRect(0, ch - 34 * S, 34 * S, 34 * S);
+  x.fillStyle = '#74eec7'; x.fillRect(cw - 40 * S, 0, 40 * S, 40 * S); x.fillRect(0, ch - 40 * S, 40 * S, 40 * S);
   x.restore();
 
   const pad = 34 * S;
-  x.fillStyle = '#55574f'; x.font = `500 ${15 * S}px "Hanken Grotesk", Arial, sans-serif`;
-  x.fillText(`AGENT 0${i + 1}`, pad, pad + 12 * S);
+  x.fillStyle = '#141414'; x.font = `700 ${16 * S}px "Hanken Grotesk", Arial, sans-serif`;
+  x.fillText(`AGENT 0${i + 1}`, pad, pad + 14 * S);
   // icon tile
-  x.fillStyle = '#f8f0ea'; x.fillRect(pad, 86 * S, 88 * S, 88 * S);
+  x.fillStyle = '#74eec7'; x.fillRect(pad, 86 * S, 88 * S, 88 * S);
 
   // name
-  x.fillStyle = '#141414'; x.font = `400 ${38 * S}px Newsreader, Georgia, serif`;
-  let y = wrap(x, name, pad, 236 * S, cw - pad * 2, 42 * S);
+  x.fillStyle = '#141414'; x.font = `500 ${44 * S}px Newsreader, Georgia, serif`;
+  let y = wrap(x, name, pad, 240 * S, cw - pad * 2, 46 * S);
   // rule
-  x.fillStyle = '#141414'; x.fillRect(pad, y + 18 * S, 40 * S, 2 * S);
+  x.fillStyle = '#141414'; x.fillRect(pad, y + 20 * S, 56 * S, 4 * S);
   // one line
-  x.fillStyle = '#2b2c28'; x.font = `500 ${20 * S}px "Hanken Grotesk", Arial, sans-serif`;
-  wrap(x, line, pad, y + 60 * S, cw - pad * 2, 28 * S);
+  x.fillStyle = '#141414'; x.font = `600 ${22 * S}px "Hanken Grotesk", Arial, sans-serif`;
+  wrap(x, line, pad, y + 64 * S, cw - pad * 2, 30 * S);
   // foot
-  x.fillStyle = '#141414'; x.font = `400 ${20 * S}px Newsreader, Georgia, serif`;
+  x.fillStyle = '#141414'; x.font = `500 ${24 * S}px Newsreader, Georgia, serif`;
   x.fillText('AIOS', pad, ch - pad - 4 * S);
-  x.fillStyle = '#55574f'; x.font = `500 ${14 * S}px "Hanken Grotesk", Arial, sans-serif`;
+  /* Maxx: "Chirag Shah Coaching can be a little more bold" */
+  x.fillStyle = '#141414'; x.font = `800 ${15 * S}px "Hanken Grotesk", Arial, sans-serif`;
   const tag = 'CHIRAG SHAH COACHING'; x.fillText(tag, cw - pad - x.measureText(tag).width, ch - pad - 4 * S);
 
   const tex = new CanvasTexture(cv);

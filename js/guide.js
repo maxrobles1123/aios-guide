@@ -7,16 +7,17 @@
 (function () {
   'use strict';
 
-  var PARTS = window.AIOS_PARTS, JOBS = window.AIOS_JOBS, BEFORE = window.AIOS_BEFORE;
+  var PARTS = window.AIOS_PARTS, JOBS = window.AIOS_JOBS || {}, BEFORE = window.AIOS_BEFORE, AFTER = window.AIOS_AFTER || [];
   var CFG = window.AIOS_CONFIG || {};
   var VID = CFG.video || {};
   var HAS_VIDEO = !!(VID.src && String(VID.src).trim());
-  var KEY = 'aios-guide-proposed-v1';
+  var KEY = 'aios-guide-proposed-v3';   /* v3: Kareem's four parts (2026-11-17); old ticks belonged to other steps */
   var TOTAL = PARTS.reduce(function (n, p) { return n + p.steps.length; }, 0);
+  var OS_GUESS = /Mac/i.test(navigator.platform || navigator.userAgent) ? 'Mac' : 'Windows';
 
   /* ---------- Screens ---------- */
-  /* "Before you start" (what you need, including the paid plan) comes first, then the four-word opener. */
-  var screens = [{ k: 'before' }, { k: 'opener' }];
+  /* Kareem's order: "Before you start" (what you need), then Parts 1 to 4, then Done. */
+  var screens = [{ k: 'before' }];
   PARTS.forEach(function (p) {
     screens.push({ k: 'intro', p: p });
     p.steps.forEach(function (s, i) { screens.push({ k: 'step', p: p, i: i, s: s, id: p.id + 's' + (i + 1) }); });
@@ -25,7 +26,7 @@
   screens.push({ k: 'done' });
 
   /* ---------- State (browser storage is optional) ---------- */
-  var state = { screen: 0, ticks: {}, big: false };
+  var state = { screen: 0, ticks: {}, big: false, aware: false };
   var storageOK = true, returning = false;
   function load() {
     try {
@@ -36,6 +37,7 @@
           state.screen = Math.min(Math.max(0, s.screen | 0), screens.length - 1);
           state.ticks = s.ticks && typeof s.ticks === 'object' ? s.ticks : {};
           state.big = s.big === true;   /* the old "Room" setting is not carried over */
+          state.aware = s.aware === true;
           returning = state.screen > 0 || doneCount() > 0;
         }
       }
@@ -75,7 +77,7 @@
     if (sc.k === 'opener') return 'Four words first';
     if (sc.k === 'before') return 'Before you start';
     if (sc.k === 'intro') return 'Part ' + sc.p.n + ' of 4: ' + sc.p.title;
-    if (sc.k === 'step') return 'Part ' + sc.p.n + ' of 4 · Step ' + (sc.i + 1) + ' of ' + sc.p.steps.length;
+    if (sc.k === 'step') return 'Part ' + sc.p.n + ' of 4: ' + sc.p.title + ' · Step ' + (sc.i + 1) + ' of ' + sc.p.steps.length;
     if (sc.k === 'check') return 'Part ' + sc.p.n + ' of 4 · Last check';
     return 'Done';
   }
@@ -243,6 +245,20 @@
     return '<details class="job"><summary><span class="badge">JOB ' + letter + '</span>' + esc(linkText) + '</summary><div class="jb">' +
       '<p style="font-weight:600;color:var(--ink);margin-bottom:4px">' + esc(j.title) + '</p><p>' + esc(j.lead) + '</p>' + body + '</div></details>';
   }
+  /* Windows and Mac: one tab each, the computer's own tab open first. Each tab can have its own short list and picture. */
+  function osBlock(s) {
+    if (!s.os) return '';
+    var tabs = Object.keys(s.os);
+    return '<div class="os-block st"><div class="tabs" role="tablist" aria-label="Your computer">' + tabs.map(function (t) {
+      return '<button type="button" role="tab" data-act="tab" data-tab="' + t + '" aria-selected="' + (t === OS_GUESS) + '">' + t + '</button>';
+    }).join('') + '</div>' + tabs.map(function (t) {
+      var o = s.os[t];
+      return '<div class="os-panel" data-tabpanel="' + t + '"' + (t === OS_GUESS ? '' : ' hidden') + '>' +
+        (o.steps ? '<ol class="mini">' + o.steps.map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ol>' : '') +
+        (o.img ? '<figure class="figure"><button type="button" class="zoom-in" data-act="zoom" data-src="' + o.img + '" data-alt="' + esc(o.alt) + '" aria-label="Make this picture bigger"><img src="' + o.img + '" alt="' + esc(o.alt) + '"></button><figcaption>' + esc(o.alt) + '</figcaption></figure>' : '') +
+        '</div>';
+    }).join('') + '</div>';
+  }
   function tickButton(label, ticked) {
     return '<button type="button" class="btn btn-mint tick-btn' + (ticked ? ' is-ticked' : '') + '" data-act="tick"><span class="tk">' + CHECK_SVG + '</span>' + label + '</button>';
   }
@@ -268,33 +284,37 @@
         '<button type="button" class="btn btn-quiet" data-act="back">Back</button>' + '</div>' +
         '</div>';
     } else if (sc.k === 'before') {
-      html = '<div class="before">' +
-        '<h1 data-split>Install AIOS</h1>' +
-        '<p class="lead" style="font-weight:600">Four parts. Follow them in order.</p>' +
+      /* Kareem's "Before you start" layout: the words on the left, the five things as a checklist on the right. */
+      var nHave = BEFORE.items.filter(function (it, i) { return state.ticks['b' + i]; }).length;
+      html = '<div class="before"><div class="before-grid"><div class="before-copy">' +
+        '<h1 data-split>Before you start</h1>' +
+        '<p class="lead" style="font-weight:600;color:var(--ink)">Check you have these five things. Then you install AIOS in four parts.</p>' +
+        '<p>Do this on your <b>Windows or Mac computer</b>, not a phone or tablet. Keep this page open beside the Claude app.</p>' +
+        '<p class="flag">Used the old AIOS or Prospecting OS? Follow every step. Your upgrade step is in Part 4.</p>' +
         '<p class="time"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#141414" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>' +
-        '<span>' + (CFG.installTime ? '<b>Set aside ' + esc(CFG.installTime) + '.</b> ' : '') + 'You can stop at any time and come back later. This page remembers which steps you have ticked, on this computer and in this browser.</span></p>' +
-        '<p>You’ll connect AIOS to Claude, sign in, make a Project called AIOS and let AIOS walk you through setup.</p>' +
-        '<p>Use your computer for these steps. You can keep this page open beside Claude as you go.</p>' +
+        '<span>' + (CFG.installTime ? '<b>Set aside ' + esc(CFG.installTime) + '.</b> ' : '') + 'You can stop at any time. This page remembers your ticks, on this computer and in this browser.</span></p>' +
+        '</div><div class="have st"><h2>What you need</h2><ol>' + BEFORE.items.map(function (it, i) {
+          var on = !!state.ticks['b' + i];
+          return '<li><span class="n" aria-hidden="true">' + (i + 1) + '</span><div><b>' + esc(it[0]) + '</b><span>' + esc(it[1]) + '</span></div>' +
+            '<button type="button" class="have-box' + (on ? ' is-on' : '') + '" data-act="btick" data-i="' + i + '" aria-pressed="' + on + '" aria-label="I have this: ' + esc(it[0]) + '">' + CHECK_SVG + '</button></li>';
+        }).join('') + '</ol></div></div>' +
+        '<div class="missing st"><h3>If you don’t have one</h3>' +
+        BEFORE.missing.map(function (m) { return '<details class="acc"><summary>' + esc(m[0]) + '</summary><div class="acc-body">' + m[1] + '</div></details>'; }).join('') + '</div>' +
         watchAllSection() +
-        '<h2 style="font-size:32px;margin:26px 0 12px">What you will have when you finish</h2>' +
-        '<p>Each morning, a brief like this one. AIOS writes it from your own email and calendar.</p>' +
-        sampleBrief() +
-        '<h2 style="font-size:32px;margin:26px 0 12px">Before you start</h2>' +
-        '<ol class="five">' + BEFORE.items.map(function (it, i) { return '<li><span class="n">' + (i + 1) + '</span><div><b>' + esc(it[0]) + '</b>' + esc(it[1]) + '</div></li>'; }).join('') + '</ol>' +
-        '<p style="margin:22px 0 4px;font-weight:600;color:var(--ink)">Missing one?</p>' +
-        BEFORE.missing.map(function (m) { return '<details class="acc"><summary>' + esc(m[0]) + '</summary><div class="acc-body">' + m[1] + '</div></details>'; }).join('') +
-        '<h2 style="font-size:32px;margin:30px 0 12px">What you will see at the end of each part</h2>' +
-        '<ol class="preview">' + PARTS.map(function (p) { return '<li class="' + (partDone(p) ? 'is-done' : '') + '"><span><b>' + esc(p.title) + '.</b> ' + esc(p.shouldSee) + '</span></li>'; }).join('') + '</ol>' +
-        '<div class="actions"><button type="button" class="btn btn-mint" data-act="next">I have all five. Next</button></div>' +
+        '<div class="actions"><button type="button" class="btn btn-mint" data-act="next">' + (nHave === 5 ? 'I have all five. Start Part 1' : 'I have everything. Start Part 1') + '</button>' +
+        '<a class="btn btn-quiet" href="#help-before">Missing something? Get help</a></div>' +
+        '<div class="ahead st"><h2>What you will see at the end of each part</h2>' +
+        '<ol class="preview">' + PARTS.map(function (p) { return '<li class="' + (partDone(p) ? 'is-done' : '') + '"><span><b>Part ' + p.n + ', ' + esc(p.title) + '.</b> ' + esc(p.shouldSee) + '</span></li>'; }).join('') + '</ol></div>' +
         '</div>';
     } else if (sc.k === 'intro') {
       var p = sc.p;
       var firstOpen = p.steps.findIndex(function (s, i) { return !state.ticks[p.id + 's' + (i + 1)]; });
-      var startLabel = firstOpen > 0 ? 'Keep going: step ' + (firstOpen + 1) : 'Start part ' + p.n;
+      var startLabel = firstOpen > 0 ? 'Keep going: step ' + (firstOpen + 1) : 'Start Part ' + p.n;
       html = '<div class="part-intro">' + head(p.n, 'Part ' + p.n + ' of 4') +
         '<h1 data-split>' + esc(p.title) + '</h1>' +
-        (p.intro ? '<p style="font-size:var(--fs-lead);margin-top:14px;max-width:44ch">' + esc(p.intro) + '</p>' : '') +
-        '<div style="margin-top:20px">' + shouldSee(p, 'At the end of this part you will see', p.n < 4) + '</div>' +
+        (p.goal ? '<p class="goal"><b>Goal:</b> ' + esc(p.goal) + '</p>' : '') +
+        (p.headsUp ? '<p class="flag">' + p.headsUp + '</p>' : '') +
+        '<div style="margin-top:20px">' + shouldSee(p, 'When Part ' + p.n + ' is done you will see', true) + '</div>' +
         '<div class="actions"><button type="button" class="btn btn-mint" data-act="start">' + startLabel + '</button>' +
         '<button type="button" class="btn btn-quiet" data-act="back">Back</button></div>' +
         (p.listLabel ? '<p class="part-label" style="margin-top:28px">' + esc(p.listLabel) + '</p>' : '<p style="margin:28px 0 0;font-weight:600;color:var(--ink)">' + p.steps.length + ' steps, one at a time:</p>') +
@@ -302,21 +322,25 @@
     } else if (sc.k === 'step') {
       var s = sc.s, P = sc.p, ticked = !!state.ticks[sc.id];
       side = true;
-      html = '<div class="step-card">' + head(sc.i + 1, 'Part ' + P.n + ' of 4 · Step ' + (sc.i + 1) + ' of ' + P.steps.length) +
+      html = '<div class="step-card">' + head(sc.i + 1, 'Part ' + P.n + ' of 4 · Step ' + (sc.i + 1) + ' of ' + P.steps.length + (s.group ? ' · ' + esc(s.group) : '')) +
+        /* Part 3 moves between three places: say which one, every time (Kareem's "Each step tells you when the place changes"). */
+        (s.place ? '<p class="place"><span class="place-dot" aria-hidden="true"></span>' + esc(s.place) + '</p>' : '') +
         (s.title ? '<h1 class="step-title" data-split>' + esc(s.title) + '</h1><p class="step-text">' + s.text + '</p>' : '<h1 class="step-text" data-split>' + s.text + '</h1>') +
         (s.note ? '<p class="step-note">' + esc(s.note) + '</p>' : '') +
         (s.noteHtml ? '<p class="step-note">' + s.noteHtml + '</p>' : '') +
         watchStepButton(sc.id) +
         plainBox(s.plain) +
+        osBlock(s) +
         figure(s) +
         (s.noteAfter ? '<p class="step-note" style="margin-top:12px">' + esc(s.noteAfter) + '</p>' : '') +
         copyBox(s.copy) +
+        (s.upgrade ? '<p class="flag" style="margin-top:16px">' + s.upgrade + '</p>' : '') +
         (s.job ? jobBlock(s.job, s.jobLink) : '') +
         '<div class="actions">' + tickButton(ticked ? 'Ticked. Next step' : 'Done. Next step', ticked) +
         '<button type="button" class="btn btn-quiet" data-act="back">Back</button>' +
         (ticked ? '<button type="button" class="btn btn-quiet untick" data-act="untick">Untick this step</button>' : '') +
         '</div>' +
-        '</div>' + helper(P, s.see, sc.id === 'p1s1' ? [BEFORE.missing[0]] : null);
+        '</div>' + helper(P, s.see, sc.id === 'p2s1' ? [BEFORE.missing[0]] : null);
     } else if (sc.k === 'check') {
       var c = sc.p, cticked = !!state.ticks[sc.id];
       side = true;
@@ -330,32 +354,40 @@
         '<button type="button" class="btn btn-quiet" data-act="backpart">' + esc(c.backLabel) + '</button></div></div>' +
         helper(c, null);
     } else if (sc.k === 'done') {
-      var finished = allDone(), n = doneCount();
+      var finished = allDone() || state.aware, n = doneCount();
       if (!finished) {
-        /* Not every step is ticked: claim nothing. A neutral heading, the count and one way back. */
+        /* Not every step is ticked: claim nothing. The count, one way back, and (Maxx, 2026-11-17) a way through for
+           someone who knows it is installed and simply did not tick as they went. */
         html = '<div class="done not-finished">' +
           '<h1 data-split>Almost there.</h1>' +
           '<div class="not-yet" role="status"><p><b>You have not ticked every step yet:</b> ' + n + ' of ' + TOTAL + ' steps done.</p>' +
-          '<button type="button" class="btn btn-black" data-act="firstopen">Go to the first step I have not ticked</button></div>' +
+          '<div class="not-yet-actions"><button type="button" class="btn btn-black" data-act="firstopen">Go to the first step I have not ticked</button>' +
+          '<button type="button" class="btn btn-outline" data-act="openall">Show me every step</button></div></div>' +
+          '<div class="aware st"><p class="aware-k">Already installed?</p>' +
+          '<p>If AIOS said hello and named your four agents, it is installed, ticks or not.</p>' +
+          '<button type="button" class="btn btn-mint" data-act="aware">I’m aware. Everything is installed. Proceed</button></div>' +
           '<p style="margin-top:18px">Need help? Visit <a href="#help">Get help</a>.</p>' +
           '<div class="actions" style="justify-content:center"><button type="button" class="btn btn-quiet" data-act="back">Back</button></div></div>';
       } else
       html = '<div class="done">' +
         '<div class="done-mark">' + CHECK_SVG.replace('<svg ', '<svg width="48" height="48" ') + '</div>' +
         '<h1 data-split>You’re set up.</h1>' +
-        '<p style="font-size:var(--fs-lead);margin-top:12px">AIOS is connected to Claude, and you’ve completed your setup.<br><b>Your four AI agents are ready for you to use.</b></p>' +
-        /* One unmistakable final check, built from Kareem's own end-of-part lines (parts 2, 3 and 4). */
+        '<p style="font-size:var(--fs-lead);margin-top:12px">AIOS is connected to Claude. <b>AIOS takes it from here, in the chat.</b></p>' +
+        '<div class="after-grid">' + AFTER.map(function (a) { return '<div class="after-card"><h2>' + esc(a[0]) + '</h2><p>' + a[1] + '</p></div>'; }).join('') + '</div>' +
+        '<div class="next-card"><div class="part-label">First thing to try</div><p style="font-weight:600;color:var(--ink);font-size:21px;margin:6px 0 12px">When setup is done, type this in your AIOS Project.</p>' +
+        copyBox({ label: 'Type this', value: 'What do I owe?' }) + '</div>' +
+        /* One unmistakable final check, built from Kareem's own end-of-part lines. */
         '<section class="worked" aria-labelledby="worked-h"><h2 id="worked-h">How to know it worked</h2>' +
-        '<p>Your install worked if you have seen all three of these in Claude:</p><ol class="worked-list">' +
-        PARTS.slice(1).map(function (p, i) {
-          var ok = partDone(p);
+        '<p>Your install worked if you have seen all four of these:</p><ol class="worked-list">' +
+        PARTS.map(function (p, i) {
+          var ok = partDone(p) || state.aware;   /* "I'm aware": they told us it is installed; we don't argue */
           return '<li class="' + (ok ? 'ok' : 'open') + '" style="--d:' + (500 + i * 160) + 'ms"><span class="ck">' + (ok ? CHECK_SVG : '') + '</span><span><b>Part ' + p.n + '.</b> ' + esc(p.shouldSee) +
             (ok ? '' : ' <span class="not-ticked">(not ticked yet)</span>') + '</span></li>';
         }).join('') + '</ol>' +
         '<p class="worked-no">One of them is missing? Go back to that part with the numbers at the top of this page, or visit <a href="#help">Get help</a>.</p></section>' +
-        '<p class="next-up"><b>Next:</b> your Success Blueprint.</p>' +
-        '<div class="next-card"><div class="part-label">Try it now</div><p style="font-weight:600;color:var(--ink);font-size:21px;margin:6px 0">Open your AIOS Project and type <b>run my morning brief</b>.</p><p style="margin:0">Your first Morning Brief will look something like this.</p></div>' +
+        '<div class="next-card"><div class="part-label">Your first Morning Brief</div><p style="margin:6px 0 0">It will look something like this, built from your own email and calendar.</p></div>' +
         '<div style="text-align:left;margin-bottom:18px">' + sampleBrief() + '</div>' +
+        '<div class="next-card next-pb"><div class="part-label">Next</div><p style="font-weight:600;color:var(--ink);font-size:21px;margin:6px 0 12px">See what to type for each of your four agents.</p><a class="btn btn-mint" href="playbook.html">Open The Playbook</a></div>' +
         /* The Meeting OS update (2026-11-14): shown only when js/config.js has its address. */
         (CFG.meetingOsGuide ? '<div class="next-card"><div class="part-label">New: the Meeting OS update</div><p style="font-weight:600;color:var(--ink);font-size:21px;margin:6px 0">Turn every client meeting into a plan you can see.</p><p style="margin:0 0 12px">Set up Granola, connect it to Claude and turn on Meeting OS.</p><a class="btn btn-black" href="' + esc(CFG.meetingOsGuide) + '">Open the Meeting OS guide</a></div>' : '') +
         '<div class="remember"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#141414" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><p style="margin:0"><b>One thing to remember.</b> Leave your computer on with Claude open, so your briefs can run.</p></div>' +
@@ -425,23 +457,32 @@
     setTimeout(done, 400);
   }
 
-  /* Primary buttons: on hover the label rolls up and a copy rolls in (the copy is hidden from screen readers). */
+  /* Button hovers say what the button does (Maxx, 2026-11-17: the old label roll swapped a word for the same word).
+     The shared styles live in css/motion.css; this only tags each button with its job:
+     - go:   moves you forward (Next, Start, Install, Open). A 3D key that lifts toward you; its arrow leads the way.
+     - back: moves you back. The mirror of go, toward the left.
+     - tick: marks a step done. The box shows the check before you commit.
+     - key:  does something on the spot (Copy, Show me a picture). Lifts straight up and presses down like a key. */
+  function kindOf(b) {
+    var a = b.dataset.act, href = b.getAttribute('href') || '';
+    if (a === 'tick') return 'tick';
+    if (a === 'back' || a === 'backpart' || a === 'firstopen') return 'back';
+    if (a === 'copy' || a === 'pic' || a === 'zoom' || a === 'openall' || /^mailto:/.test(href)) return 'key';
+    return 'go';
+  }
+  var ARROW = '<span class="arw" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2 8h11M9 4l4 4-4 4"/></svg></span>';
   function rollify(root) {
-    $all('.btn:not(.btn-quiet):not([data-noroll])', root).forEach(function (b) {
-      if (b.dataset.rolled) return;
-      var texts = Array.prototype.slice.call(b.childNodes).filter(function (n) { return n.nodeType === 3 && n.nodeValue.trim(); });
-      if (texts.length !== 1) return;
-      var t = texts[0], label = t.nodeValue.trim();
-      var outer = document.createElement('span'); outer.className = 'roll';
-      var inner = document.createElement('span'); inner.className = 'roll-in'; inner.setAttribute('data-label', label); inner.textContent = label;
-      outer.appendChild(inner);
-      b.replaceChild(outer, t);
-      b.dataset.rolled = '1';
+    $all('.btn', root).forEach(function (b) {
+      if (b.dataset.kind) return;
+      var k = kindOf(b); b.dataset.kind = k;
+      if (b.querySelector('svg') || b.closest('.site-header')) return;
+      if (k === 'back') b.insertAdjacentHTML('afterbegin', ARROW);
+      else if (k === 'go' && !b.classList.contains('btn-quiet')) b.insertAdjacentHTML('beforeend', ARROW);
     });
   }
   function setLabel(b, text) {
-    var inner = $('.roll-in', b);
-    if (inner) { inner.textContent = text; inner.setAttribute('data-label', text); } else b.textContent = text;
+    var t = Array.prototype.slice.call(b.childNodes).filter(function (n) { return n.nodeType === 3 && n.nodeValue.trim(); })[0];
+    if (t) t.nodeValue = text; else b.insertBefore(document.createTextNode(text), b.firstChild);
   }
 
   /* ---------- Render ---------- */
@@ -484,8 +525,8 @@
     if (!btn) return;
     function overBy() { return btn.getBoundingClientRect().bottom - (window.innerHeight - 8); }
     var fig = $('[data-fig]:not([hidden])', scr), tog = $('[data-act="pic"]', scr), img = fig && $('img', fig);
-    /* 1. a smaller picture (never under 200px tall; it can still be clicked to make it bigger) */
-    function shrink() { if (!img || !img.complete || !img.naturalHeight) return; var o = overBy(); if (o <= 0) return; var h = img.getBoundingClientRect().height; if (h - o >= 200) img.style.maxHeight = Math.floor(h - o) + 'px'; }
+    /* 1. a smaller picture (never under 150px tall; it can still be clicked to make it bigger) */
+    function shrink() { if (!img || !img.complete || !img.naturalHeight) return; var o = overBy(); if (o <= 0) return; var h = img.getBoundingClientRect().height; if (h - o >= 150) img.style.maxHeight = Math.floor(h - o) + 'px'; }
     shrink();
     /* 2. close "In plain words" (one click to open again) */
     var pl = $('.plain[open]', scr);
@@ -521,20 +562,27 @@
     var curPart = sc.p ? sc.p.n : (sc.k === 'done' ? 5 : 0);
     var doneNow = PARTS.map(partDone);
     var sig = curPart + ':' + doneNow.join(',') + ':' + allDone();
-    if (sig !== renderProgress.sig) { renderProgress.sig = sig; $('#parts').innerHTML = PARTS.map(function (p, i) {
+    if (sig !== renderProgress.sig) { renderProgress.sig = sig; $('#parts').innerHTML = '<li><button type="button" data-jump="before" class="prep"' + (curPart === 0 ? ' aria-current="step"' : '') + '><span class="box"></span><span class="label">Before you start</span></button></li>' + PARTS.map(function (p, i) {
       var popped = prevParts && doneNow[i] && !prevParts[i] && motionOK();
       return '<li><button type="button" data-jump="' + p.id + '" class="' + (partDone(p) ? 'done' : '') + (popped ? ' pop' : '') + '"' + (curPart === p.n ? ' aria-current="step"' : '') + '>' +
         '<span class="box">' + (partDone(p) ? CHECK_SVG.replace('<svg ', '<svg width="16" height="16" ') : p.n) + '</span><span class="label">' + esc(p.title) + '</span></button></li>';
     }).join('') + '<li><button type="button" data-jump="done" class="' + (allDone() ? 'done' : '') + '"' + (curPart === 5 ? ' aria-current="step"' : '') + '><span class="box">' + (allDone() ? CHECK_SVG.replace('<svg ', '<svg width="16" height="16" ') : '') + '</span><span class="label">Done</span></button></li>'; }
     prevParts = doneNow;
 
+    /* The "All steps" panel: the box ticks (and stays put); the words take you to the step. */
+    var row = 0;
     $('#all-steps-list').innerHTML = PARTS.map(function (p) {
-      return '<div><h3>' + p.n + ' · ' + esc(p.title) + '</h3><ol>' + p.steps.map(function (s, i) {
-        var id = p.id + 's' + (i + 1), idx = indexOf(function (x) { return x.id === id; });
-        return '<li><button type="button" data-goto="' + idx + '" class="' + (state.ticks[id] ? 'is-done ' : '') + (idx === state.screen ? 'is-here' : '') + '"' + (idx === state.screen ? ' aria-current="step"' : '') + '>' +
-          '<span class="tickmark">' + (state.ticks[id] ? CHECK_SVG.replace('<svg ', '<svg width="14" height="14" ') : '') + '</span><span>' + (i + 1) + '. ' + esc(plain(s.title || s.text)) + '</span></button></li>';
+      return '<div class="as-part"><h3><span class="as-n">' + p.n + '</span>' + esc(p.title) + '</h3><ol>' + p.steps.map(function (s, i) {
+        var id = p.id + 's' + (i + 1), idx = indexOf(function (x) { return x.id === id; }), on = !!state.ticks[id], here = idx === state.screen;
+        return '<li class="' + (on ? 'is-done ' : '') + (here ? 'is-here' : '') + '" style="--i:' + (row++) + '">' +
+          '<button type="button" class="as-box" data-tickid="' + id + '" aria-pressed="' + on + '" aria-label="' + (on ? 'Untick' : 'Tick') + ' step ' + (i + 1) + ' of part ' + p.n + '">' + CHECK_SVG.replace('<svg ', '<svg width="14" height="14" ') + '</button>' +
+          '<button type="button" class="as-go" data-goto="' + idx + '"' + (here ? ' aria-current="step"' : '') + '><span class="as-i">' + (i + 1) + '</span>' + esc(plain(s.text)) + '</button></li>';
       }).join('') + '</ol></div>';
     }).join('');
+    var asc = $('#as-count'); if (asc) asc.textContent = n + ' of ' + TOTAL + ' steps ticked';
+    var asb = $('#as-bar'); if (asb) asb.style.setProperty('--p', n / TOTAL);
+    var pill = $('#steps-pill-n'); if (pill) pill.textContent = n + ' of ' + TOTAL;
+    var pb = $('#steps-pill'); if (pb) pb.style.setProperty('--p', n / TOTAL);
 
     $all('[data-big]').forEach(function (b) { b.setAttribute('aria-pressed', String(state.big)); });
   }
@@ -633,6 +681,16 @@
     }
     else if (act === 'back') back();
     else if (act === 'firstopen') { var f = firstOpen(); if (f >= 0) go(f, 'back'); }
+    else if (act === 'aware') { state.aware = true; save(); announce('Done. Everything is installed.'); render({ dir: 'fwd', ghost: true, focus: true, celebrate: true }); }
+    else if (act === 'openall') toggleAll(true);
+    else if (act === 'btick') {
+      var bi = 'b' + b.dataset.i, onb = !state.ticks[bi];
+      if (onb) state.ticks[bi] = true; else delete state.ticks[bi];
+      save(); b.classList.toggle('is-on', onb); b.setAttribute('aria-pressed', String(onb));
+      if (onb && motionOK()) { b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); }
+      var nh = BEFORE.items.filter(function (it, i) { return state.ticks['b' + i]; }).length, nb = $('[data-act="next"]', $('#screen'));
+      if (nb) setLabel(nb, nh === 5 ? 'I have all five. Start Part 1' : 'I have everything. Start Part 1');
+    }
     else if (act === 'backpart') {
       var prev = PARTS[sc.p.n - 2];
       go(prev ? indexOf(function (x) { return x.k === 'intro' && x.p === prev; }) : 0, 'back');
@@ -646,7 +704,7 @@
     else if (act === 'copy') copy(b);
     else if (act === 'watch') openVideo(+b.dataset.t || 0, b);
     else if (act === 'tab') {
-      var box = b.closest('.jb');
+      var box = b.closest('.jb, .os-block');
       $all('[role="tab"]', box).forEach(function (t) { t.setAttribute('aria-selected', String(t === b)); });
       $all('[data-tabpanel]', box).forEach(function (pnl) { pnl.hidden = pnl.dataset.tabpanel !== b.dataset.tab; });
     }
@@ -669,18 +727,43 @@
   $('#parts').addEventListener('click', function (e) {
     var b = e.target.closest('[data-jump]'); if (!b) return;
     var j = b.dataset.jump;
-    go(j === 'done' ? screens.length - 1 : indexOf(function (x) { return x.k === 'intro' && x.p.id === j; }));
+    go(j === 'done' ? screens.length - 1 : j === 'before' ? 0 : indexOf(function (x) { return x.k === 'intro' && x.p.id === j; }));
   });
   $('#all-steps-list').addEventListener('click', function (e) {
+    var box = e.target.closest('[data-tickid]');
+    if (box) {
+      /* Ticking from the panel: the box changes, nothing moves. */
+      var id = box.dataset.tickid, on = !state.ticks[id];
+      if (on) state.ticks[id] = true; else delete state.ticks[id];
+      save(); renderProgress(); announce(on ? 'Ticked.' : 'Unticked.');
+      var again = $('[data-tickid="' + id + '"]'); if (again) { if (e.detail === 0) again.focus(); if (on && motionOK()) again.classList.add('pop'); }
+      if (screens[state.screen].id === id) render({});
+      return;
+    }
     var b = e.target.closest('[data-goto]'); if (!b) return;
     toggleAll(false); go(+b.dataset.goto);
   });
+  /* The panel slides in from the right over the page (it never pushes the step down), and can be read through. */
+  var allReturn = null;
   function toggleAll(force) {
     var panel = $('#all-steps'), btn = $('#toggle-all');
-    var open = typeof force === 'boolean' ? force : panel.hidden;
-    panel.hidden = !open; btn.setAttribute('aria-expanded', String(open)); btn.textContent = open ? 'Hide all steps' : 'See all steps';
+    if (!panel) return;
+    var open = typeof force === 'boolean' ? force : !panel.classList.contains('is-open');
+    if (open === panel.classList.contains('is-open')) return;
+    panel.classList.toggle('is-open', open);
+    document.documentElement.classList.toggle('as-open', open);
+    if (open) { panel.removeAttribute('inert'); allReturn = document.activeElement; setTimeout(function () { var h = $('.is-here .as-go', panel) || $('#as-close'); if (h) { h.focus({ preventScroll: true }); h.scrollIntoView({ block: 'center' }); } }, 60); }
+    else { panel.setAttribute('inert', ''); if (allReturn && allReturn.focus && panel.contains(document.activeElement)) allReturn.focus({ preventScroll: true }); }
+    panel.setAttribute('aria-hidden', String(!open));
+    [btn, $('#steps-pill')].forEach(function (x) { if (x) x.setAttribute('aria-expanded', String(open)); });
+    if (btn) btn.textContent = open ? 'Hide all steps' : 'See all steps';
+    var lenis = window.AIOS_MOTION && window.AIOS_MOTION.lenis; if (lenis) { if (open) lenis.stop(); else lenis.start(); }
   }
   $('#toggle-all').addEventListener('click', function () { toggleAll(); });
+  $('#steps-pill').addEventListener('click', function () { toggleAll(); });
+  $('#as-close').addEventListener('click', function () { toggleAll(false); });
+  $('#as-scrim').addEventListener('click', function () { toggleAll(false); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && $('#all-steps').classList.contains('is-open')) toggleAll(false); });
 
   /* "Clear my ticks" exists twice: in the strip (wide screens) and inside the "See all steps" panel (narrow screens). */
   var clearArmed = false, clearTimer;
@@ -689,7 +772,7 @@
     b.addEventListener('click', function () {
       if (!clearArmed) { clearArmed = true; clearLabel('Click again to clear all ticks'); clearTimer = setTimeout(function () { clearArmed = false; clearLabel('Clear my ticks'); }, 4000); return; }
       clearTimeout(clearTimer); clearArmed = false; clearLabel('Clear my ticks');
-      state.ticks = {}; prevCount = null; prevParts = null; renderProgress.sig = null; save(); render({}); announce('All ticks cleared.');
+      state.ticks = {}; state.aware = false; prevCount = null; prevParts = null; renderProgress.sig = null; save(); render({}); announce('All ticks cleared.');
     });
   });
 
@@ -810,9 +893,12 @@
     $all('[data-hide-on]').forEach(function (a) { a.hidden = a.dataset.hideOn === v; });
     document.title = titles[v] + ' | Chirag Shah Coaching';
     document.documentElement.classList.toggle('big', v === 'install' && state.big);
+    document.documentElement.setAttribute('data-view', v);
     $('#skip').textContent = v === 'install' ? 'Skip to the step' : 'Skip to the main content';
     var h = location.hash.slice(1);
-    if (h.indexOf('help-') === 0) { var t = document.getElementById(h); if (t) t.scrollIntoView(); }
+    /* #help-install, #what-agents...: open the page at that part (used by "Back to the four agents" on the Playbook). */
+    var t = /^(help|what)-/.test(h) ? document.getElementById(h) : null;
+    if (t) { var lenis = window.AIOS_MOTION && window.AIOS_MOTION.lenis; window.scrollTo(0, t.getBoundingClientRect().top + window.pageYOffset - 24); if (lenis) lenis.scrollTo(window.pageYOffset, { immediate: true, force: true }); }
     else window.scrollTo(0, 0);
     if (v === 'install') {
       var n = hashStep();

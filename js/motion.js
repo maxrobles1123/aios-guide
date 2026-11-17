@@ -25,14 +25,12 @@
   }
   window.AIOS_MOTION = { lenis: lenis };
 
-  /* ---------- Scroll progress ---------- */
-  var bar = document.createElement('div');
-  bar.className = 'scroll-progress'; bar.setAttribute('aria-hidden', 'true'); bar.innerHTML = '<i></i>';
-  document.body.appendChild(bar);
-  var barI = bar.firstChild;
+  /* (The thin scroll bar along the top is gone: "no progress bars" is one of mrhsi's 20 rules, and the install keeps
+     its own step count, which is information, not decoration.) */
 
-  /* ---------- Which view a link goes to (mirrors guide.js) ---------- */
+  /* ---------- Which view a link goes to (mirrors guide.js; the order lives in the page's <head>) ---------- */
   var isGuide = !!$('[data-view]');
+  var VIEW = window.AIOS_VIEW || { order: { what: 0, install: 1, playbook: 2, help: 3 }, of: function () { return 'what'; } };
   function viewOf(hash) {
     var h = (hash || '#what').slice(1) || 'what';
     if (h.indexOf('help') === 0) return 'help';
@@ -41,38 +39,49 @@
   }
   function afterViewChange() {
     if (lenis) { lenis.resize(); lenis.scrollTo(window.scrollY, { immediate: true, force: true }); }
-    bar.hidden = !isGuide || viewOf(location.hash) === 'install';
     ST.refresh();
   }
 
-  /* ---------- Page changes: the new page wipes up over the old one, the header holds still ---------- */
+  /* ---------- Page changes: forward, the new page rises over the old one as the old one recedes into the page;
+     back, the same thing reversed and quicker. The header holds still either way. ---------- */
   if (isGuide && document.startViewTransition) {
     document.addEventListener('click', function (e) {
       if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       var a = e.target.closest && e.target.closest('a[href^="#"]');
       if (!a || a.target) return;
-      var href = a.getAttribute('href');
-      if (href === '#' || viewOf(href) === viewOf(location.hash)) return;
+      var href = a.getAttribute('href'), from = viewOf(location.hash), to = viewOf(href);
+      if (href === '#' || to === from) return;
       e.preventDefault();
-      document.startViewTransition(function () {
+      html.setAttribute('data-vt', VIEW.order[to] < VIEW.order[from] ? 'back' : 'fwd');
+      var vt = document.startViewTransition(function () {
         history.pushState(null, '', href);
         window.dispatchEvent(new HashChangeEvent('hashchange'));
       });
+      vt.ready.catch(function () { /* a quick second click skips this one: fine */ });
+      vt.finished.finally(function () { html.removeAttribute('data-vt'); });
     });
   }
   window.addEventListener('hashchange', function () { requestAnimationFrame(afterViewChange); });
   window.addEventListener('popstate', function () { requestAnimationFrame(afterViewChange); });
-  bar.hidden = !isGuide || viewOf(location.hash) === 'install';   /* the Playbook shows one step per screen and has its own step count */
 
   /* ---------- One clock for the scroll-linked parts ---------- */
   var tickers = [];
-  gsap.ticker.add(function () {
-    var max = document.documentElement.scrollHeight - window.innerHeight;
-    barI.style.transform = 'scaleX(' + (max > 0 ? Math.min(1, window.scrollY / max) : 0) + ')';
-    for (var i = 0; i < tickers.length; i++) tickers[i]();
-  });
+  gsap.ticker.add(function () { for (var i = 0; i < tickers.length; i++) tickers[i](); });
 
-  if (!isGuide || !$('#view-what')) return;   /* the Playbook page takes the scroll, the bar and the page changes only */
+  /* ---------- The Playbook, reached from the four agents: one click back to them, wherever you are ---------- */
+  if (!isGuide) {
+    var fromAgents = /[?&]from=agents\b/.test(location.search);
+    try { if (fromAgents) sessionStorage.setItem('aios-from-agents', '1'); else fromAgents = sessionStorage.getItem('aios-from-agents') === '1'; } catch (e) { /* fine */ }
+    if (fromAgents) {
+      var back = document.createElement('a');
+      back.className = 'back-chip'; back.href = 'index.html#what-agents'; back.setAttribute('data-kind', 'back');
+      back.innerHTML = '<span class="arw" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2 8h11M9 4l4 4-4 4"/></svg></span>Back to the four agents';
+      document.body.appendChild(back);
+      requestAnimationFrame(function () { back.classList.add('is-in'); });
+    }
+    return;   /* the Playbook page takes the scroll and the page changes only */
+  }
+  if (!$('#view-what')) return;
 
   /* ---------- Hero: the photo sits a layer deeper ---------- */
   var heroImg = $('#view-what .hero-img img');
@@ -100,7 +109,7 @@
 
   /* ---------- The closing band opens to full width as it arrives ---------- */
   var band = $('#view-what .section-mint');
-  if (band) gsap.fromTo(band, { '--cx': '5%', '--cr': '28px' }, { '--cx': '0%', '--cr': '0px', ease: 'none',
+  if (band) gsap.fromTo(band, { '--cx': '5%' }, { '--cx': '0%', ease: 'none',   /* sharp corners throughout (mrhsi) */
     scrollTrigger: { trigger: band, start: 'top bottom', end: 'top 30%', scrub: 0.55 } });
 
   /* ---------- The four agents ---------- */
@@ -150,7 +159,7 @@
     var io = new IntersectionObserver(function (es) {
       if (!es[0].isIntersecting || loading) return;
       loading = true; io.disconnect();
-      import('./agents3d.js')   /* resolved against this script's own address, js/ */.then(function (m) { return m.start(host, cards, state); })
+      import('./agents3d.js?v=32')   /* resolved against this script's own address, js/ */.then(function (m) { return m.start(host, cards, state); })
         .catch(function (err) { html.classList.remove('has-3d'); if (window.console) console.warn('AIOS 3D off:', err); ST.refresh(); });
     }, { rootMargin: '150% 0px' });
     io.observe(section);

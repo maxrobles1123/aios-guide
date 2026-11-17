@@ -1,16 +1,20 @@
-/* AIOS guide: the motion layer (v3, 2026-11-17).
+/* AIOS guide: the motion layer (v3.1, 2026-11-17). Loaded last on both pages (index.html and playbook.html).
    Built on the CSC Motion Kit (vault: Knowledge/Review Library/Teardowns/Award Sites 2026-11-13) and the
    3D Site Teardowns (2026-11-07). What each part takes, and from which award site:
    - Smooth scroll: Lenis lerp 0.1, clocked by GSAP, phones keep their own scrolling (Grids, Spyker).
-   - Page changes: a wipe on the "move" curve, header held still (Lando's curve, Agrumea's cover-and-lift idea).
-   - The four agents: one contained 3D object, edges feathered into the page, fog in the page colour,
-     ambient light plus one key light, pixel ratio capped (Belgrade Arbor, Agrumea, Lando).
-   - Scroll-linked parts are linear with a little lag (every scrubbed tween on Delta, FORMAT, Grids, Spyker).
-   Everything here is off when the computer asks for reduced motion; the page then reads exactly as before. */
+   - Page changes: direction-aware. What AIOS does > Install > Playbook > Get help is forward (Maxx, 2026-11-17).
+     Forward: the new page rises over the old one while the old one tips back into the page (Lando's curve, Agrumea's
+     cover-and-lift). Back: the exact reverse, about 40% quicker. The header never moves.
+   - The four agents: one contained 3D object, edges feathered into the page (Belgrade Arbor, Agrumea, Lando).
+   - Buttons: a 3D key whose movement says what it does (go forward, go back, tick, act on the spot).
+   UI rules from mrhsi's "20 rules" reel (Review Library, Instagram/mrhsi/DfxWa6_I5Ay): real screenshots, one
+   highlighted phrase, solid cards, sharp corners, readable labels, no pill badges, no bounce, big numbers, no
+   decorative progress bar. Everything that moves is off when the computer asks for reduced motion. */
 
 :root {
   --move: cubic-bezier(0.65, 0.05, 0, 1);   /* Lando --cubic-default; things that travel or uncover */
   --rise: cubic-bezier(0.165, 0.84, 0.44, 1); /* power3.out twin; text through a mask */
+  --depth: 4px;                              /* how far a button lifts off the page */
 }
 
 /* ---------- Lenis (its own required rules) ---------- */
@@ -19,25 +23,88 @@ html.lenis, html.lenis body { height: auto; }
 .lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
 .lenis.lenis-stopped { overflow: hidden; }
 
+/* ---------- One header on every page (it used to sit 20px further left on the Playbook) ----------
+   Same width, same gaps, same button, and the scrollbar's room always kept, so nothing shifts between pages. */
+html { scrollbar-gutter: stable; }
+.site-header .wrap { max-width: 1140px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 24px; padding-top: 8px; padding-bottom: 8px; }
+.site-nav { gap: 0 18px; flex: 1 1 auto; }
+.site-nav a::after { bottom: 4px; }
+.site-header .btn { text-decoration: none; margin-left: auto; min-height: 48px; padding: 12px 26px; font: 600 17px/1.2 var(--font-text); }
+@media (max-width: 720px) { .site-header .btn { display: none; } }
+
 /* ---------- Page changes ---------- */
 @media (prefers-reduced-motion: no-preference) {
   @view-transition { navigation: auto; }
   .site-header { view-transition-name: site-header; }
-  .scroll-progress { view-transition-name: scroll-progress; }
-  ::view-transition-group(root) { animation-duration: 900ms; }
-  ::view-transition-old(root) { animation: vt-old 800ms var(--move) both; }
-  ::view-transition-new(root) { animation: vt-new 900ms var(--move) both; }
   ::view-transition-old(site-header), ::view-transition-new(site-header) { animation: none; mix-blend-mode: normal; }
+  /* Forward: slower, more going on. */
+  ::view-transition-group(root) { animation-duration: 1150ms; }
+  ::view-transition-old(root) { animation: vt-recede 1050ms var(--move) both; transform-origin: 50% 0; }
+  ::view-transition-new(root) { animation: vt-rise 1150ms var(--move) both; }
+  /* Back: the same movement played in reverse, and quicker. The page you leave sinks; the one you return to comes forward. */
+  html[data-vt="back"]::view-transition-group(root) { animation-duration: 700ms; }
+  html[data-vt="back"]::view-transition-old(root) { animation: vt-sink 650ms var(--move) both; z-index: 2; }
+  html[data-vt="back"]::view-transition-new(root) { animation: vt-return 700ms var(--move) both; transform-origin: 50% 0; z-index: 1; }
 }
-@keyframes vt-old { to { transform: translate3d(0, -4%, 0) scale(0.955); opacity: 0.35; } }
-@keyframes vt-new {
-  from { clip-path: inset(100% 0 0 0); transform: translate3d(0, 14vh, 0); }
-  to   { clip-path: inset(0 0 0 0); transform: none; }
-}
+@keyframes vt-recede { to { transform: perspective(1400px) translate3d(0, -5%, 0) rotateX(7deg) scale(0.92); opacity: 0.2; } }
+@keyframes vt-rise { from { clip-path: inset(100% 0 0 0); transform: translate3d(0, 18vh, 0); } to { clip-path: inset(0 0 0 0); transform: none; } }
+@keyframes vt-sink { from { clip-path: inset(0 0 0 0); transform: none; } to { clip-path: inset(100% 0 0 0); transform: translate3d(0, 18vh, 0); } }
+@keyframes vt-return { from { transform: perspective(1400px) translate3d(0, -5%, 0) rotateX(7deg) scale(0.92); opacity: 0.2; } }
 
-/* ---------- Scroll progress: a mint rule under the header (USAvionix / Alche "instrument" idea, kept quiet) ---------- */
-.scroll-progress { position: fixed; left: 0; right: 0; top: 0; height: 3px; z-index: 60; pointer-events: none; }
-.scroll-progress i { display: block; height: 100%; background: var(--mint); transform: scaleX(0); transform-origin: left; will-change: transform; }
+/* Inside the install and the Playbook, step to step: forward tips the new step in from the right in 3D and takes its
+   time; back slides it in flat from the left, quicker. */
+.in-fwd [data-split] .wi { animation-duration: 900ms; }
+.in-back [data-split] .wi { animation-duration: 520ms; }
+.in-fwd .st:not(.below) { animation-name: in-fwd3d; animation-duration: 780ms; }
+.in-back .st:not(.below) { animation-name: in-back-flat; animation-duration: 420ms; }
+.out-fwd { animation: out-fwd3d 280ms var(--ease) forwards; }
+.out-back { animation: out-back-flat 140ms var(--ease) forwards; }
+@keyframes in-fwd3d { from { opacity: 0; transform: perspective(1100px) translate3d(64px, 0, 0) rotateY(-10deg); } }
+@keyframes in-back-flat { from { opacity: 0; transform: translate3d(-28px, 0, 0); } }
+@keyframes out-fwd3d { to { opacity: 0; transform: perspective(1100px) translate3d(-64px, 0, 0) rotateY(9deg); } }
+@keyframes out-back-flat { to { opacity: 0; transform: translate3d(28px, 0, 0); } }
+
+/* No bounce (mrhsi): every "pop" settles without overshooting. These replace the older keyframes of the same name. */
+@keyframes box-pop { from { transform: scale(0.6); } }
+@keyframes tk-pop { from { transform: scale(0.85); } }
+@keyframes badge-pop { from { transform: scale(0.6); } }
+@keyframes sq-pop { from { transform: scale(0); } }
+
+/* ---------- Buttons: a 3D key whose movement says what it does ----------
+   go   (Next, Start, Install, Open): lifts up and to the left, its edge showing below-right, the arrow leads forward.
+   back (Back, Close):                the mirror, lifting toward the right, the arrow leading back.
+   tick (Done. Next step):            lifts like go, and the box shows the check before you commit.
+   key  (Copy, Show me a picture):    lifts straight up and presses down, like a key on a keyboard. */
+.btn .arw { display: inline-grid; place-items: center; width: 18px; height: 18px; flex: none; transition: transform 450ms var(--ease); }
+.btn .arw svg, .back-chip .arw svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: square; }
+[data-kind="back"] .arw svg { transform: rotate(180deg); }
+.btn[data-kind]:not(.btn-quiet), .steps-pill, .back-chip, .have-box {
+  transition: transform 380ms var(--ease), box-shadow 380ms var(--ease), background-color 400ms var(--ease), color 400ms var(--ease), border-color 400ms var(--ease);
+}
+.btn[data-kind]:not(.btn-quiet) { box-shadow: 0 0 0 0 var(--ink); }
+.btn-black[data-kind] { --edge3d: var(--mint); }
+@media (hover: hover) and (pointer: fine) {
+  .btn[data-kind="go"]:not(.btn-quiet):hover, .btn[data-kind="tick"]:hover { transform: translate3d(calc(var(--depth) * -1), calc(var(--depth) * -1), 0); box-shadow: var(--depth) var(--depth) 0 0 var(--edge3d, var(--ink)); }
+  .btn[data-kind="back"]:not(.btn-quiet):hover { transform: translate3d(var(--depth), calc(var(--depth) * -1), 0); box-shadow: calc(var(--depth) * -1) var(--depth) 0 0 var(--edge3d, var(--ink)); }
+  .btn[data-kind="key"]:not(.btn-quiet):hover, .steps-pill:hover, .have-box:hover { transform: translate3d(0, calc(var(--depth) * -1), 0); box-shadow: 0 var(--depth) 0 0 var(--edge3d, var(--ink)); }
+  .back-chip:hover { transform: translate3d(var(--depth), calc(var(--depth) * -1), 0); box-shadow: calc(var(--depth) * -1) var(--depth) 0 0 var(--ink); }
+  [data-kind="go"]:hover .arw { transform: translate3d(5px, 0, 0); }
+  [data-kind="back"]:hover .arw { transform: translate3d(-5px, 0, 0); }
+  .btn-quiet[data-kind="back"]:hover { text-decoration-thickness: 3px; }
+  /* the tick previews itself: the check draws in faintly before you click */
+  .tick-btn:not(.is-ticked):not(.ticking):hover svg path { stroke-dashoffset: 0; opacity: 0.35; }
+  .btn-mint[data-kind]:hover { background: var(--mint); }
+  .btn-outline[data-kind]:hover { background: var(--surface); }
+  .btn-black[data-kind]:hover { background: var(--ink); }
+}
+/* pressed: the key goes all the way down into the page */
+.btn[data-kind]:not(.btn-quiet):active, .steps-pill:active, .back-chip:active, .have-box:active { transform: translate3d(0, 0, 0) !important; box-shadow: 0 0 0 0 var(--ink) !important; transition-duration: 90ms; }
+/* the label roll is retired: if any old markup still carries it, it stands still */
+.roll-in::after { display: none !important; }
+.btn:hover .roll-in, .cb-btn:hover .roll-in { transform: none !important; }
+/* Playbook copy buttons: a key, like every other Copy */
+@media (hover: hover) and (pointer: fine) { .cb-btn:hover { box-shadow: inset 0 calc(var(--depth) * -1) 0 0 var(--mint-press); background: var(--mint); } }
+.cb-btn:active { box-shadow: inset 0 2px 0 0 rgba(20, 20, 20, 0.25); }
 
 /* ---------- Hero: the photo sits a layer deeper than the page ---------- */
 .m-on .hero-img img { translate: 0 var(--py, 0%); scale: 1.12; will-change: translate; }
@@ -61,30 +128,33 @@ html.lenis, html.lenis body { height: auto; }
 .m-on .brief-card .inner > *, .m-on .brief-card .inner dl > * { will-change: transform, opacity; }
 
 /* ---------- The closing band opens out to the full width as it arrives (Spyker's section scale, reversed) ---------- */
-.m-on .section-mint { clip-path: inset(0 var(--cx, 0%) round var(--cr, 0px)); }
+.m-on .section-mint { clip-path: inset(0 var(--cx, 0%)); }
 
 /* ---------- The four agents in 3D ---------- */
 .agents-3d { display: none; }
 .has-3d .agents-3d { display: block; position: relative; }
 .has-3d .agents-3d canvas { display: block; width: 100%; height: 100%; cursor: default; }
 .has-3d .agents-3d canvas.is-pointing { cursor: pointer; }
-/* Belgrade's feathered mask: the scene has no box around it, it dissolves into the page. */
+/* Belgrade's feathered mask, opened up (Maxx: "a little faded"): the middle two thirds are untouched, only the far edges dissolve. */
 .has-3d .agents-3d .stage3d { position: absolute; inset: 0;
-  -webkit-mask-image: radial-gradient(ellipse 50% 58% at 50% 48%, #000 52%, transparent 100%);
-          mask-image: radial-gradient(ellipse 50% 58% at 50% 48%, #000 52%, transparent 100%); }
+  -webkit-mask-image: radial-gradient(ellipse 54% 64% at 50% 48%, #000 60%, transparent 100%);
+          mask-image: radial-gradient(ellipse 54% 64% at 50% 48%, #000 60%, transparent 100%); }
 .has-3d .agents-3d .stage3d { opacity: 0; transition: opacity 1200ms var(--ease); }
 .has-3d .agents-3d.is-ready .stage3d { opacity: 1; }
-.agents-3d .hint { position: absolute; left: 0; right: 0; bottom: 18px; text-align: center; font-size: 16px; color: var(--muted); margin: 0; }
-.agents-3d .hint b { color: var(--ink); font-weight: 600; }
-.agents-3d .counter { position: absolute; left: 0; top: 18px; display: flex; gap: 10px; align-items: baseline; font: 500 16px/1 var(--font-text); color: var(--muted); letter-spacing: 0.04em; }
-.agents-3d .counter .n { display: inline-block; height: 1em; line-height: 1; overflow: hidden; color: var(--ink); font-weight: 600; }
+.agents-3d .hint { position: absolute; left: 0; right: 0; bottom: 18px; text-align: center; font-size: 17px; color: var(--ink); margin: 0; }
+.agents-3d .hint b { font-weight: 700; background: var(--mint); padding: 1px 6px; }
+.agents-3d .counter { position: absolute; left: 0; top: 18px; display: flex; gap: 10px; align-items: baseline; font: 600 18px/1 var(--font-text); color: var(--ink); letter-spacing: 0.04em; }
+.agents-3d .counter .n { display: inline-block; height: 1em; line-height: 1; overflow: hidden; color: var(--ink); font-weight: 700; }
 .agents-3d .counter .n span { display: block; line-height: 1; transition: transform 700ms var(--ease); }
 
-.has-3d .agents .agent { transition: opacity 600ms var(--ease), background 600ms var(--ease), transform 600ms var(--ease); }
-.has-3d .agents .agent:not(.is-active) { opacity: 0.42; }
-.has-3d .agents .agent.is-active { background: var(--mint-tint); }
+.has-3d .agents .agent { transition: opacity 600ms var(--ease), background 600ms var(--ease), transform 600ms var(--ease), box-shadow 600ms var(--ease); }
+.has-3d .agents .agent:not(.is-active) { opacity: 0.6; }
+.has-3d .agents .agent.is-active { background: var(--mint-tint); box-shadow: inset 4px 0 0 var(--mint); }
 .has-3d .agents .agent .icon { transition: background 600ms var(--ease); }
 .has-3d .agents .agent.is-active .icon { background: var(--mint); }
+.agent-link { display: inline-flex; align-items: center; gap: 8px; margin-top: 6px; min-height: 44px; font-weight: 600; color: var(--ink); text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: 4px; }
+.agent-link svg { transition: transform 450ms var(--ease); }
+@media (hover: hover) and (pointer: fine) { .agent-link:hover { text-decoration-thickness: 3px; } .agent-link:hover svg { transform: translate3d(5px, 0, 0); } }
 
 @media (min-width: 900px) {
   .has-3d .agents-layout { display: grid; grid-template-columns: 1.15fr 1fr; gap: 48px; margin-top: 32px; align-items: start; }
@@ -101,10 +171,115 @@ html.lenis, html.lenis body { height: auto; }
   .has-3d .agents .agent { min-height: 44vh; }
 }
 
+/* ---------- Install: Kareem's layout ---------- */
+.before-grid { display: grid; gap: 32px; }
+@media (min-width: 960px) { .before-grid { grid-template-columns: 1.05fr 1fr; gap: 56px; align-items: start; } }
+.before .lead { font-size: clamp(21px, 2.2vw, 26px); line-height: 1.35; margin-top: 18px; }
+.flag { margin: 18px 0 0; padding: 14px 18px; max-width: 600px; background: var(--mint-tint); border-left: 4px solid var(--mint); color: var(--ink); }
+.have { border: 1.5px solid var(--ink); background: var(--surface); }
+.have h2 { font-size: 32px; padding: 20px 24px; border-bottom: 1px solid var(--rule); }
+.have ol { list-style: none; margin: 0; padding: 0; }
+.have li { display: grid; grid-template-columns: 40px 1fr auto; gap: 14px; align-items: start; padding: 18px 24px; }
+.have li + li { border-top: 1px solid var(--rule); }
+.have .n { font: 400 42px/0.9 var(--font-display); color: var(--ink); }
+.have li b { display: block; font-size: 19px; }
+.have li span { display: block; color: var(--muted); }
+.have-box { width: 36px; height: 36px; margin-top: 2px; padding: 0; border: 1.5px solid var(--ink); background: var(--surface); color: var(--ink); display: grid; place-items: center; cursor: pointer; box-shadow: 0 0 0 0 var(--ink); }
+.have-box svg { width: 22px; height: 22px; opacity: 0; transition: opacity 200ms var(--ease); }
+.have-box.is-on { background: var(--mint); }
+.have-box.is-on svg { opacity: 1; }
+.have-box.pop, .all-steps .as-box.pop::before { animation: tk-pop 340ms var(--ease) backwards; }
+.missing { margin-top: 32px; max-width: 760px; }
+.missing h3 { font-size: 28px; margin-bottom: 8px; }
+.ahead { margin-top: 44px; }
+.ahead h2 { font-size: 32px; margin-bottom: 12px; }
+.goal { font-size: var(--fs-lead); margin-top: 14px; max-width: 48ch; color: var(--ink); }
+/* Part 3 crosses three places; the place is named in a solid label above the step. */
+.place { display: inline-flex; align-items: center; gap: 10px; margin: 4px 0 12px; padding: 6px 12px; background: var(--ink); color: #fff; font-weight: 600; font-size: 16px; letter-spacing: 0.02em; }
+.place-dot { width: 10px; height: 10px; background: var(--mint); }
+.os-block { margin-top: 18px; }
+.os-panel { padding-top: 14px; }
+.os-panel .figure { margin-top: 12px; }
+.aware { margin: 24px auto 0; max-width: 620px; padding: 22px 24px; border: 1.5px solid var(--ink); background: var(--surface); text-align: left; }
+.aware-k { font: 400 30px/1.1 var(--font-display); color: var(--ink); margin-bottom: 6px; }
+.not-yet-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.after-grid { display: grid; gap: 16px; margin: 28px 0; text-align: left; }
+@media (min-width: 760px) { .after-grid { grid-template-columns: 1fr 1fr; } }
+.after-card { background: var(--surface); border: 1px solid var(--rule-strong); padding: 22px 24px; }
+.after-card h2 { font-size: 28px; margin-bottom: 8px; }
+.next-pb { text-align: left; }
+
+/* ---------- All steps: a see-through panel from the right (Maxx: "a sidebar... a little transparent") ---------- */
+.as-scrim { position: fixed; inset: 0; z-index: 70; background: rgba(20, 20, 20, 0.16); opacity: 0; pointer-events: none; transition: opacity 500ms var(--ease); }
+html.as-open .as-scrim { opacity: 1; pointer-events: auto; }
+.all-steps {
+  position: fixed; z-index: 71; top: 0; right: 0; bottom: 0; width: min(440px, 94vw);
+  display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain;
+  background: rgba(255, 255, 255, 0.8); -webkit-backdrop-filter: blur(18px) saturate(1.4); backdrop-filter: blur(18px) saturate(1.4);
+  border: 0; border-left: 1.5px solid var(--ink); box-shadow: -30px 0 60px -34px rgba(20, 20, 20, 0.45);
+  transform: translate3d(104%, 0, 0); visibility: hidden;
+  transition: transform 450ms var(--move), visibility 0s 450ms;
+}
+.all-steps.is-open { transform: none; visibility: visible; transition: transform 750ms var(--move), visibility 0s; }
+.as-head { position: sticky; top: 0; z-index: 1; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 18px 20px 12px; background: rgba(255, 255, 255, 0.72); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.as-k { margin: 0; font: 400 32px/1 var(--font-display); color: var(--ink); }
+.as-count { margin: 6px 0 0; font-size: 16px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.as-bar { position: relative; height: 4px; margin: 0 20px 10px; background: var(--rule); overflow: hidden; }
+.as-bar i { position: absolute; inset: 0; background: var(--ink); transform-origin: left; transform: scaleX(var(--p, 0)); transition: transform 800ms var(--ease); }
+.as-tip { margin: 0 20px 6px; font-size: 16px; color: var(--muted); }
+.all-steps #all-steps-list { display: block; padding: 0; }
+.as-part { padding: 4px 20px 8px; }
+.all-steps .as-part h3 { display: flex; gap: 10px; align-items: center; margin: 14px 0 6px; font: 600 17px/1.3 var(--font-text); color: var(--ink); letter-spacing: 0; }
+.as-n { display: inline-grid; place-items: center; width: 26px; height: 26px; flex: none; background: var(--ink); color: #fff; font-size: 15px; }
+.all-steps ol { list-style: none; margin: 0; padding: 0; }
+.all-steps li { display: grid; grid-template-columns: 46px 1fr; align-items: stretch; border-top: 1px solid rgba(20, 20, 20, 0.09); }
+.all-steps li.is-here { background: rgba(116, 238, 199, 0.28); box-shadow: inset 3px 0 0 var(--ink); }
+@media (prefers-reduced-motion: no-preference) {
+  .all-steps li { opacity: 0; transform: translate3d(28px, 0, 0); transition: opacity 450ms var(--ease), transform 650ms var(--ease); transition-delay: 0ms; }
+  .all-steps.is-open li { opacity: 1; transform: none; transition-delay: calc(140ms + var(--i, 0) * 22ms); }
+}
+.all-steps button.as-box { display: grid; place-items: center; width: 46px; min-height: 48px; padding: 0; margin: 0; background: none; border: 0; cursor: pointer; color: var(--ink); grid-template-columns: none; }
+.all-steps .as-box::before { content: ''; grid-area: 1 / 1; width: 24px; height: 24px; border: 1.5px solid var(--ink); background: var(--surface); box-shadow: 0 0 0 0 var(--ink); transition: background-color 250ms var(--ease), transform 300ms var(--ease), box-shadow 300ms var(--ease); }
+.all-steps .as-box svg { grid-area: 1 / 1; position: relative; z-index: 1; opacity: 0; }
+.all-steps .as-box svg path { stroke-dasharray: 24; stroke-dashoffset: 24; transition: stroke-dashoffset 260ms var(--ease); }
+.all-steps .is-done .as-box::before { background: var(--mint); }
+.all-steps .is-done .as-box svg { opacity: 1; }
+.all-steps .is-done .as-box svg path { stroke-dashoffset: 0; }
+@media (hover: hover) and (pointer: fine) {
+  .all-steps .as-box:hover::before { transform: translate3d(0, -3px, 0); box-shadow: 0 3px 0 0 var(--ink); }
+  .all-steps li:not(.is-done) .as-box:hover svg { opacity: 0.35; }
+  .all-steps li:not(.is-done) .as-box:hover svg path { stroke-dashoffset: 0; }
+  .all-steps .as-go:hover { color: var(--ink); text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: 3px; background: rgba(116, 238, 199, 0.18); }
+}
+.all-steps button.as-go { display: flex; gap: 10px; align-items: flex-start; width: 100%; min-height: 48px; padding: 12px 12px 12px 2px; text-align: left; background: none; border: 0; font: 400 16px/1.4 var(--font-text); color: var(--body); cursor: pointer; grid-template-columns: none; }
+.all-steps .is-here .as-go { font-weight: 600; color: var(--ink); }
+.as-i { flex: none; min-width: 18px; color: var(--muted); font-variant-numeric: tabular-nums; }
+/* the old panel styled every button as a step row; the head and tool buttons are ordinary buttons again */
+.all-steps .as-head button, .all-steps .panel-tools button { display: inline-flex; width: auto; grid-template-columns: none; padding: 12px 8px; background: none; }
+.as-head > div { flex: 1 1 auto; min-width: 0; }
+.all-steps .panel-tools { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: auto; padding: 14px 20px 22px; border-top: 1px solid var(--rule); }
+
+/* The floating step count: always there on the install, one click to the panel. A square that fills, not a ring. */
+.steps-pill { position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: 18px; z-index: 65; display: none; align-items: center; gap: 10px; min-height: 52px; padding: 8px 18px 8px 10px; border: 1.5px solid var(--ink); background: rgba(255, 255, 255, 0.74); -webkit-backdrop-filter: blur(14px) saturate(1.4); backdrop-filter: blur(14px) saturate(1.4); font: 600 16px/1 var(--font-text); color: var(--ink); cursor: pointer; box-shadow: 0 0 0 0 var(--ink); }
+html[data-view="install"] .steps-pill { display: inline-flex; }
+html[data-view="install"] #view-install { padding-bottom: 84px; }   /* the last button on the page is never under the pill */
+html.as-open .steps-pill { opacity: 0; pointer-events: none; }
+.sp-ring { width: 28px; height: 28px; border: 1.5px solid var(--ink); background: linear-gradient(to top, var(--mint) calc(var(--p, 0) * 100%), var(--surface) 0); transition: background 600ms var(--ease); }
+.sp-n { color: var(--muted); font-weight: 500; font-variant-numeric: tabular-nums; }
+@media (max-width: 799px) { .steps-pill { bottom: 12px; min-height: 48px; } .steps-pill .sp-t { display: none; } }
+
+/* ---------- The Playbook: back to the four agents, wherever you are ---------- */
+.back-chip { position: fixed; left: max(16px, env(safe-area-inset-left)); bottom: 18px; z-index: 65; display: inline-flex; align-items: center; gap: 10px; min-height: 52px; padding: 8px 18px; border: 1.5px solid var(--ink); background: rgba(255, 255, 255, 0.78); -webkit-backdrop-filter: blur(14px) saturate(1.4); backdrop-filter: blur(14px) saturate(1.4); font: 600 16px/1 var(--font-text); color: var(--ink); text-decoration: none; box-shadow: 0 0 0 0 var(--ink); }
+.back-chip .arw { display: inline-grid; transition: transform 450ms var(--ease); }
+@media (hover: hover) and (pointer: fine) { .back-chip:hover .arw { transform: translate3d(-5px, 0, 0); } }
+@media (prefers-reduced-motion: no-preference) { .back-chip { opacity: 0; translate: 0 16px; transition: opacity 600ms var(--ease) 600ms, translate 800ms var(--ease) 600ms, transform 380ms var(--ease), box-shadow 380ms var(--ease); } .back-chip.is-in { opacity: 1; translate: 0 0; } }
+@media print { .back-chip, .steps-pill, .all-steps, .as-scrim { display: none !important; } }
+
 /* ---------- Reduced motion: every part of this layer stands still ---------- */
 @media (prefers-reduced-motion: reduce) {
   .m-on .hero-img img { translate: none; scale: none; }
   .m-on .section-mint { clip-path: none; }
   .m-on .hl::before { transform: none; transition: none; }
-  .scroll-progress { display: none; }
+  .all-steps, .all-steps.is-open { transition: none !important; }
+  .btn[data-kind]:hover, .steps-pill:hover, .back-chip:hover, .have-box:hover { transform: none !important; }
 }

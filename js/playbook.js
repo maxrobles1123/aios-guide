@@ -130,7 +130,17 @@
     $('#p-n').textContent = i + 1;
     $('#p-name').textContent = screens[i].getAttribute('data-title');
     $all('.seg').forEach(function (s, k) { s.classList.toggle('done', k <= i); });
+    /* Kareem's tabs: the one you are on is marked, and the ink line under it slides across to the next. */
+    var tab = null;
+    $all('.pb-tab').forEach(function (t, k) { var on = k === i; if (on) { t.setAttribute('aria-current', 'step'); tab = t; } else t.removeAttribute('aria-current'); });
+    var ink = $('.pb-ink'), track = $('.pb-tabs-track');
+    if (tab && ink && track) {
+      ink.style.setProperty('--x', tab.offsetLeft + 'px'); ink.style.setProperty('--w', tab.offsetWidth + 'px');
+      var left = tab.offsetLeft - (track.clientWidth - tab.offsetWidth) / 2;
+      if (track.scrollWidth > track.clientWidth) { try { track.scrollTo({ left: left, behavior: motion ? 'smooth' : 'auto' }); } catch (e) { track.scrollLeft = left; } }
+    }
   }
+  window.addEventListener('resize', function () { progress(current); });
 
   /* ---------- go to a step ---------- */
   function go(i, opts) {
@@ -187,14 +197,8 @@
     else fallback();
   });
 
-  /* ---------- labels on the step buttons roll on hover (same as the install guide) ---------- */
-  $all('.step-nav .btn, #print-qr').forEach(function (b) {
-    var t = Array.prototype.slice.call(b.childNodes).filter(function (n) { return n.nodeType === 3 && n.nodeValue.trim(); })[0];
-    if (!t) return;
-    var label = t.nodeValue.trim(), outer = document.createElement('span'), inner = document.createElement('span');
-    outer.className = 'roll'; inner.className = 'roll-in'; inner.setAttribute('data-label', label); inner.textContent = label;
-    outer.appendChild(inner); b.replaceChild(outer, t);
-  });
+  /* ---------- button hovers: a 3D key by job (css/motion.css). The old label roll is gone. ---------- */
+  var pq0 = $('#print-qr'); if (pq0) pq0.setAttribute('data-kind', 'key');
 
   /* ---------- first week ---------- */
   var boxes = $all('.week input');
@@ -227,7 +231,7 @@
   go(fromHash(), { replace: true, silent: true });
   if (!hadHash && saved > 0 && saved < screens.length) {
     var p = document.createElement('p'); p.className = 'resume';
-    var b = document.createElement('button'); b.type = 'button'; b.className = 'btn btn-black'; b.setAttribute('data-go', saved);
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'btn btn-black'; b.setAttribute('data-go', saved); b.setAttribute('data-kind', 'go');
     b.textContent = 'Pick up where you left off: ' + screens[saved].getAttribute('data-title');
     p.appendChild(b); $('.welcome').appendChild(p);
   }
