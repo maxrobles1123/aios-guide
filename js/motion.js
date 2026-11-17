@@ -29,7 +29,7 @@
      its own step count, which is information, not decoration.) */
 
   /* ---------- Which view a link goes to (mirrors guide.js; the order lives in the page's <head>) ---------- */
-  var isGuide = !!$('[data-view]');
+  var isGuide = !!$('[data-view]:not(html)'), inVT = false;
   var VIEW = window.AIOS_VIEW || { order: { what: 0, install: 1, playbook: 2, help: 3 }, of: function () { return 'what'; } };
   function viewOf(hash) {
     var h = (hash || '#what').slice(1) || 'what';
@@ -54,12 +54,29 @@
       e.preventDefault();
       html.setAttribute('data-vt', VIEW.order[to] < VIEW.order[from] ? 'back' : 'fwd');
       var vt = document.startViewTransition(function () {
-        history.pushState(null, '', href);
-        window.dispatchEvent(new HashChangeEvent('hashchange'));
+        inVT = true;
+        try { history.pushState(null, '', href); window.dispatchEvent(new HashChangeEvent('hashchange')); }
+        finally { inVT = false; }
       });
       vt.ready.catch(function () { /* a quick second click skips this one: fine */ });
       vt.finished.finally(function () { html.removeAttribute('data-vt'); });
     });
+
+    /* Browser Back and Forward (the arrows top-left, Alt+arrow, a two-finger swipe): the same moves, by where you
+       are going. The URL has already changed but the page has not, so the old page is still on screen to be
+       pictured; guide.js hands its page change over (onRoute) and it runs inside the transition. */
+    var holding = false;
+    window.AIOS_DEFER_ROUTE = function (from, to, run) {
+      if (inVT) return false;              /* our own click: already inside a transition */
+      if (holding) return true;            /* popstate and hashchange both arrive: one change, not two */
+      holding = true;
+      html.setAttribute('data-vt', VIEW.order[to] < VIEW.order[from] ? 'back' : 'fwd');
+      var vt = document.startViewTransition(function () { holding = false; inVT = true; try { run(); } finally { inVT = false; } });
+      vt.ready.catch(function () { /* skipped: the page still changes */ });
+      vt.updateCallbackDone.catch(function () { /* reported in the console by the page change itself */ });
+      vt.finished.finally(function () { holding = false; html.removeAttribute('data-vt'); });
+      return true;
+    };
   }
   window.addEventListener('hashchange', function () { requestAnimationFrame(afterViewChange); });
   window.addEventListener('popstate', function () { requestAnimationFrame(afterViewChange); });
@@ -85,7 +102,7 @@
 
   /* ---------- Hero: the photo sits a layer deeper ---------- */
   var heroImg = $('#view-what .hero-img img');
-  if (heroImg) gsap.fromTo(heroImg, { '--py': '-5%' }, { '--py': '5%', ease: 'none',
+  if (heroImg) gsap.fromTo(heroImg, { '--py': '-2%' }, { '--py': '2%', ease: 'none',
     scrollTrigger: { trigger: '#view-what .hero', start: 'top top', end: 'bottom top', scrub: 0.15 } });
 
   /* ---------- The one highlighted phrase ---------- */
@@ -159,7 +176,7 @@
     var io = new IntersectionObserver(function (es) {
       if (!es[0].isIntersecting || loading) return;
       loading = true; io.disconnect();
-      import('./agents3d.js?v=32')   /* resolved against this script's own address, js/ */.then(function (m) { return m.start(host, cards, state); })
+      import('./agents3d.js?v=34')   /* resolved against this script's own address, js/ */.then(function (m) { return m.start(host, cards, state); })
         .catch(function (err) { html.classList.remove('has-3d'); if (window.console) console.warn('AIOS 3D off:', err); ST.refresh(); });
     }, { rootMargin: '150% 0px' });
     io.observe(section);

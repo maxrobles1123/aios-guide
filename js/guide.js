@@ -888,7 +888,9 @@
   function showView() {
     var v = currentView();
     toggleAll(false); /* the panel is never remembered: a new page or a reload starts with it closed */
-    $all('[data-view]').forEach(function (s) { s.hidden = s.dataset.view !== v; });
+    /* :not(html): the page root carries data-view too (for the CSS), and must never be hidden with the views.
+       (Maxx 2026-11-17: "Install AIOS just goes white and I have to click refresh".) */
+    $all('[data-view]:not(html)').forEach(function (s) { s.hidden = s.dataset.view !== v; });
     $all('[data-nav]').forEach(function (a) { if (a.dataset.nav === v) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
     $all('[data-hide-on]').forEach(function (a) { a.hidden = a.dataset.hideOn === v; });
     document.title = titles[v] + ' | Chirag Shah Coaching';
@@ -912,7 +914,15 @@
     lastView = v;
   }
   /* Browser Back and Forward move one step inside the install, like the page's own Back button. */
-  function onRoute() {
+  /* Browser Back/Forward (buttons or a two-finger swipe) between pages: the motion layer may hold the change
+     until it has a picture of the old page, so the move animates instead of jumping (js/motion.js). */
+  function onRoute(e) {
+    var v = currentView();
+    var uaAnim = e && e.type === 'popstate' && e.hasUAVisualTransition;
+    if (!uaAnim && lastView && v !== lastView && window.AIOS_DEFER_ROUTE && window.AIOS_DEFER_ROUTE(lastView, v, routeNow)) return;
+    routeNow();
+  }
+  function routeNow() {
     var v = currentView(), n = hashStep();
     if (v === 'install' && lastView === 'install' && n !== null) {
       if (n !== state.screen) go(n, n < state.screen ? 'back' : 'fwd', { fromHistory: true });

@@ -107,7 +107,8 @@ html { scrollbar-gutter: stable; }
 .cb-btn:active { box-shadow: inset 0 2px 0 0 rgba(20, 20, 20, 0.25); }
 
 /* ---------- Hero: the photo sits a layer deeper than the page ---------- */
-.m-on .hero-img img { translate: 0 var(--py, 0%); scale: 1.12; will-change: translate; }
+/* The photo is 648px wide: a light zoom keeps it near its own size, so it stays sharp (Maxx 2026-11-17). */
+.m-on .hero-img img { translate: 0 var(--py, 0%); scale: 1.045; will-change: translate; }
 
 /* ---------- "Not paperwork.": the one highlighted phrase on the page ---------- */
 .m-on .hl { position: relative; display: inline-block; color: var(--ink); font-style: italic; isolation: isolate; }
@@ -137,8 +138,8 @@ html { scrollbar-gutter: stable; }
 .has-3d .agents-3d canvas.is-pointing { cursor: pointer; }
 /* Belgrade's feathered mask, opened up (Maxx: "a little faded"): the middle two thirds are untouched, only the far edges dissolve. */
 .has-3d .agents-3d .stage3d { position: absolute; inset: 0;
-  -webkit-mask-image: radial-gradient(ellipse 54% 64% at 50% 48%, #000 60%, transparent 100%);
-          mask-image: radial-gradient(ellipse 54% 64% at 50% 48%, #000 60%, transparent 100%); }
+  -webkit-mask-image: radial-gradient(ellipse 62% 66% at 50% 48%, #000 78%, transparent 100%);
+          mask-image: radial-gradient(ellipse 62% 66% at 50% 48%, #000 78%, transparent 100%); }
 .has-3d .agents-3d .stage3d { opacity: 0; transition: opacity 1200ms var(--ease); }
 .has-3d .agents-3d.is-ready .stage3d { opacity: 1; }
 .agents-3d .hint { position: absolute; left: 0; right: 0; bottom: 18px; text-align: center; font-size: 17px; color: var(--ink); margin: 0; }

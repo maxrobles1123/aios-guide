@@ -564,7 +564,7 @@ details.help > summary { font-size: 18px; padding: 14px 0; }
    say the same thing (and mrhsi's rule is no progress bars). */
 .progress .here, .progress .segs { display: none; }
 .progress .wrap { padding-top: 0; padding-bottom: 0; }
-.pb-tabs { margin: 0 calc(-1 * var(--gutter)); }
+.pb-tabs { margin: 0 calc(-1 * var(--gutter)); min-width: 0; max-width: calc(100% + 2 * var(--gutter)); overflow: hidden; }   /* never wider than the phone (2026-11-17) */
 .pb-tabs-track { position: relative; display: flex; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; padding: 0 var(--gutter); }
 .pb-tabs-track::-webkit-scrollbar { display: none; }
 .pb-tab { position: relative; flex: 1 0 auto; min-height: 56px; padding: 0 18px; border: 0; background: none; font: 600 16px/1.2 var(--font-text); color: var(--muted); cursor: pointer; white-space: nowrap; transition: color 400ms var(--ease), background-color 400ms var(--ease); }

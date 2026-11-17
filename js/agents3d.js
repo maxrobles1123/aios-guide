@@ -16,6 +16,7 @@ import {
 
 const INK = 0xa39b8c, MINT = 0x5fe6bb, PAGE = 0xffffff;   /* a warm mid-tone edge: reads as depth, not as a black line */
 const W = 1.5, H = 2.0, D = 0.1;
+const LINEAR = 1006;   /* THREE.LinearFilter (not exported by the slim bundle) */
 
 export async function start(host, cards, state) {
   const holder = host.querySelector('.stage3d');
@@ -38,19 +39,24 @@ export async function start(host, cards, state) {
   await Promise.all([
     document.fonts.load('400 64px Newsreader'), document.fonts.load('600 30px "Hanken Grotesk"'), document.fonts.load('800 30px "Hanken Grotesk"'), document.fonts.load('500 64px Newsreader')
   ]).catch(() => {});
-  const faces = await Promise.all(cards.map((card, i) => drawFace(card, i, renderer)));
+  /* Sharp, not blurry (Maxx 2026-11-17): the faces are drawn at the size the front tile is shown on this screen,
+     in device pixels, and sampled without mipmaps, so the words are never softened by a smaller copy. */
+  const dpr = () => Math.min(devicePixelRatio || 1, 2);
+  const hb = holder.getBoundingClientRect();
+  const texScale = MathUtils.clamp((hb.height || 480) * 0.62 * dpr() / 512, 1.25, 3.5);
+  const faces = await Promise.all(cards.map((card, i) => drawFace(card, i, renderer, texScale)));
 
   const root = new Group(); scene.add(root);
   const bodyGeo = new RoundedBoxGeometry(W, H, D, 4, 0.07);
   const faceGeo = new PlaneGeometry(W - 0.035, H - 0.035);
   const tiles = faces.map((tex, i) => {
     const g = new Group();
-    const bodyMat = new MeshStandardMaterial({ color: INK, roughness: 0.38, metalness: 0.08 });
+    const bodyMat = new MeshStandardMaterial({ color: INK, roughness: 0.38, metalness: 0.08, transparent: true });
     const body = new Mesh(bodyGeo, bodyMat);
     /* The face is unlit (Maxx, 2026-11-17: "a little faded"): the lights shape the tile's body, the words stay full black on white. */
-    const faceMat = new MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.5 });
+    const faceMat = new MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.02 });
     const face = new Mesh(faceGeo, faceMat); face.position.z = D / 2 + 0.003;
-    g.add(body, face); g.userData = { i, bodyMat, cur: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } };
+    g.add(body, face); g.userData = { i, bodyMat, faceMat, cur: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0, op: 1 } };
     body.userData.tile = g; face.userData.tile = g;
     root.add(g); return g;
   });
@@ -64,11 +70,13 @@ export async function start(host, cards, state) {
   function size() {
     const r = holder.getBoundingClientRect();
     const w = Math.max(1, Math.round(r.width)), h = Math.max(1, Math.round(r.height));
-    renderer.setPixelRatio(phone() ? Math.min(devicePixelRatio, 2) : Math.min(devicePixelRatio, 1.25));
+    renderer.setPixelRatio(dpr());   /* full sharpness on every screen (was capped at 1.25 on desktop: the blur) */
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
     /* keep a whole tile and a half each side in frame, whatever the shape of the box */
-    camera.position.z = camera.aspect < 0.9 ? 6.9 / Math.max(camera.aspect, 0.55) * 0.86 : 6.9;
+    /* fit the front tile and both neighbours, side by side with clear space between them, inside the box */
+    const halfW = 2.1, tanH = Math.tan(MathUtils.degToRad(camera.fov / 2));
+    camera.position.z = Math.max(6.9, halfW / (tanH * camera.aspect));
     camera.updateProjectionMatrix();
   }
   size();
@@ -96,8 +104,10 @@ export async function start(host, cards, state) {
     const st = { x: -0.15 + i * 0.05, y: 0.05 - i * 0.04, z: -i * 0.16, rx: 0.16, ry: -0.62, rz: 0.035 * i };
     // the fan: the agent being read faces you; the others step back and turn away (a carousel told by scroll)
     const d = i - f, ad = Math.abs(d), sg = Math.sign(d);
+    /* Maxx 2026-11-17: the tiles were "overlapping on each other". Now the neighbours sit clear of the front tile,
+       and a tile two away fades out behind its neighbour instead of piling up. */
     const fan = {
-      x: sg * (ad < 1 ? ad * 1.12 : 1.12 + (ad - 1) * 0.48),   /* tight enough that the neighbours stay inside the frame */
+      x: sg * (ad < 1 ? ad * 1.68 : 1.68 + (ad - 1) * 0.35),
       y: -Math.min(ad, 2) * 0.05,
       z: -Math.min(ad, 2.4) * 1.05,
       rx: 0.02,
@@ -107,6 +117,7 @@ export async function start(host, cards, state) {
     const k = ease(MathUtils.clamp(s * 1.7 - (3 - i) * 0.18, 0, 1)); // the tiles peel off the stack one after another
     const o = {};
     for (const key in st) o[key] = st[key] + (fan[key] - st[key]) * k;
+    o.op = 1 + (MathUtils.clamp((1.75 - ad) / 0.75, 0, 1) - 1) * k;   // in the stack all four show; in the fan, three at most
     o.y += Math.sin(t * 0.9 + i * 1.7) * 0.035;              // a slow breath, never still, never busy
     o.rx += Math.cos(t * 0.7 + i) * 0.012;
     return o;
@@ -134,6 +145,8 @@ export async function start(host, cards, state) {
       const tg = target(i, f, s, t), c = g.userData.cur;
       for (const k in tg) c[k] += (tg[k] - c[k]) * damp;
       g.position.set(c.x, c.y, c.z);
+      const op = MathUtils.clamp(c.op, 0, 1);
+      g.userData.bodyMat.opacity = op; g.userData.faceMat.opacity = op; g.visible = op > 0.01;
       g.rotation.set(c.rx, c.ry, c.rz);
       // the tile you are reading takes the mint edge
       const on = s > 0.6 ? Math.max(0, 1 - Math.abs(i - f) * 1.6) : 0;
@@ -153,8 +166,8 @@ export async function start(host, cards, state) {
 }
 
 /* ---------- drawing a tile face ---------- */
-function drawFace(card, i, renderer) {
-  const S = 2, cw = 384 * S, ch = 512 * S;
+function drawFace(card, i, renderer, S) {
+  const cw = Math.round(384 * S), ch = Math.round(512 * S);
   const cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
   const x = cv.getContext('2d');
   const name = (card.querySelector('h3') || {}).textContent || '';
@@ -175,14 +188,24 @@ function drawFace(card, i, renderer) {
   // icon tile
   x.fillStyle = '#74eec7'; x.fillRect(pad, 86 * S, 88 * S, 88 * S);
 
-  // name
-  x.fillStyle = '#141414'; x.font = `500 ${44 * S}px Newsreader, Georgia, serif`;
-  let y = wrap(x, name, pad, 240 * S, cw - pad * 2, 46 * S);
-  // rule
-  x.fillStyle = '#141414'; x.fillRect(pad, y + 20 * S, 56 * S, 4 * S);
-  // one line
-  x.fillStyle = '#141414'; x.font = `600 ${22 * S}px "Hanken Grotesk", Arial, sans-serif`;
-  wrap(x, line, pad, y + 64 * S, cw - pad * 2, 30 * S);
+  /* name, rule and line, sized down together until they end well above the AIOS foot
+     (Maxx 2026-11-17: the Client Experience line sat right on top of the AIOS logo). */
+  const maxW = cw - pad * 2, floor = ch - pad - 62 * S;
+  let k = 1;
+  for (; k > 0.6; k -= 0.04) {
+    x.font = `500 ${44 * k * S}px Newsreader, Georgia, serif`;
+    const nl = lines(x, name, maxW).length;
+    x.font = `600 ${22 * Math.max(k, 0.82) * S}px "Hanken Grotesk", Arial, sans-serif`;
+    const ll = lines(x, line, maxW).length;
+    const end = 228 * S + (nl - 1) * 46 * k * S + 64 * k * S + (ll - 1) * 30 * Math.max(k, 0.82) * S;
+    if (end <= floor) break;
+  }
+  const lk = Math.max(k, 0.82);
+  x.fillStyle = '#141414'; x.font = `500 ${44 * k * S}px Newsreader, Georgia, serif`;
+  let y = wrap(x, name, pad, 228 * S, maxW, 46 * k * S);
+  x.fillRect(pad, y + 20 * k * S, 56 * S, 4 * S);
+  x.font = `600 ${22 * lk * S}px "Hanken Grotesk", Arial, sans-serif`;
+  wrap(x, line, pad, y + 64 * k * S, maxW, 30 * lk * S);
   // foot
   x.fillStyle = '#141414'; x.font = `500 ${24 * S}px Newsreader, Georgia, serif`;
   x.fillText('AIOS', pad, ch - pad - 4 * S);
@@ -192,7 +215,7 @@ function drawFace(card, i, renderer) {
 
   const tex = new CanvasTexture(cv);
   tex.colorSpace = SRGBColorSpace;
-  tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+  tex.generateMipmaps = false; tex.minFilter = LINEAR; tex.magFilter = LINEAR;
 
   // the icon, drawn from the card's own SVG
   return new Promise((resolve) => {
@@ -206,6 +229,11 @@ function drawFace(card, i, renderer) {
   });
 }
 function roundRect(x, a, b, w, h, r) { x.beginPath(); x.moveTo(a + r, b); x.arcTo(a + w, b, a + w, b + h, r); x.arcTo(a + w, b + h, a, b + h, r); x.arcTo(a, b + h, a, b, r); x.arcTo(a, b, a + w, b, r); x.closePath(); }
+function lines(x, text, maxW) {
+  const out = []; let ln = '';
+  for (const w of text.split(/\s+/)) { const t = ln ? ln + ' ' + w : w; if (x.measureText(t).width > maxW && ln) { out.push(ln); ln = w; } else ln = t; }
+  if (ln) out.push(ln); return out;
+}
 function wrap(x, text, a, y, maxW, lh) {
   const words = text.split(/\s+/); let ln = '';
   for (const w of words) {
