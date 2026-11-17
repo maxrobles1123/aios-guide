@@ -1,0 +1,110 @@
+/* AIOS guide: the motion layer (v3, 2026-11-17).
+   Built on the CSC Motion Kit (vault: Knowledge/Review Library/Teardowns/Award Sites 2026-11-13) and the
+   3D Site Teardowns (2026-11-07). What each part takes, and from which award site:
+   - Smooth scroll: Lenis lerp 0.1, clocked by GSAP, phones keep their own scrolling (Grids, Spyker).
+   - Page changes: a wipe on the "move" curve, header held still (Lando's curve, Agrumea's cover-and-lift idea).
+   - The four agents: one contained 3D object, edges feathered into the page, fog in the page colour,
+     ambient light plus one key light, pixel ratio capped (Belgrade Arbor, Agrumea, Lando).
+   - Scroll-linked parts are linear with a little lag (every scrubbed tween on Delta, FORMAT, Grids, Spyker).
+   Everything here is off when the computer asks for reduced motion; the page then reads exactly as before. */
+
+:root {
+  --move: cubic-bezier(0.65, 0.05, 0, 1);   /* Lando --cubic-default; things that travel or uncover */
+  --rise: cubic-bezier(0.165, 0.84, 0.44, 1); /* power3.out twin; text through a mask */
+}
+
+/* ---------- Lenis (its own required rules) ---------- */
+html.lenis, html.lenis body { height: auto; }
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
+.lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
+.lenis.lenis-stopped { overflow: hidden; }
+
+/* ---------- Page changes ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition { navigation: auto; }
+  .site-header { view-transition-name: site-header; }
+  .scroll-progress { view-transition-name: scroll-progress; }
+  ::view-transition-group(root) { animation-duration: 900ms; }
+  ::view-transition-old(root) { animation: vt-old 800ms var(--move) both; }
+  ::view-transition-new(root) { animation: vt-new 900ms var(--move) both; }
+  ::view-transition-old(site-header), ::view-transition-new(site-header) { animation: none; mix-blend-mode: normal; }
+}
+@keyframes vt-old { to { transform: translate3d(0, -4%, 0) scale(0.955); opacity: 0.35; } }
+@keyframes vt-new {
+  from { clip-path: inset(100% 0 0 0); transform: translate3d(0, 14vh, 0); }
+  to   { clip-path: inset(0 0 0 0); transform: none; }
+}
+
+/* ---------- Scroll progress: a mint rule under the header (USAvionix / Alche "instrument" idea, kept quiet) ---------- */
+.scroll-progress { position: fixed; left: 0; right: 0; top: 0; height: 3px; z-index: 60; pointer-events: none; }
+.scroll-progress i { display: block; height: 100%; background: var(--mint); transform: scaleX(0); transform-origin: left; will-change: transform; }
+
+/* ---------- Hero: the photo sits a layer deeper than the page ---------- */
+.m-on .hero-img img { translate: 0 var(--py, 0%); scale: 1.12; will-change: translate; }
+
+/* ---------- "Not paperwork.": the one highlighted phrase on the page ---------- */
+.m-on .hl { position: relative; display: inline-block; color: var(--ink); font-style: italic; isolation: isolate; }
+.m-on .hl::before { content: ''; position: absolute; left: -0.12em; right: -0.12em; top: 0.12em; bottom: 0.02em; background: var(--mint);
+  z-index: -1; transform: scaleX(0); transform-origin: left; transition: transform 900ms var(--move) 250ms; }
+.m-on .hl.is-in::before { transform: scaleX(1); }
+
+/* ---------- The promise: a line draws down the three steps as you read them ---------- */
+.m-on .promise ol { position: relative; }
+.m-on .promise ol::before, .m-on .promise ol::after { content: ''; position: absolute; left: 30px; top: 0; bottom: 0; width: 2px; }
+.m-on .promise ol::before { background: var(--rule); }
+.m-on .promise ol::after { background: var(--ink); transform: scaleY(var(--p, 0)); transform-origin: top; }
+.m-on .promise li { position: relative; z-index: 1; }
+.m-on .promise .big { display: inline-grid; place-items: center; width: 60px; height: 72px; background: var(--sand); transition: background 600ms var(--ease), color 600ms var(--ease); }
+.m-on .promise li.is-on .big { background: var(--mint); }
+
+/* ---------- The morning brief writes itself in ---------- */
+.m-on .brief-card .inner > *, .m-on .brief-card .inner dl > * { will-change: transform, opacity; }
+
+/* ---------- The closing band opens out to the full width as it arrives (Spyker's section scale, reversed) ---------- */
+.m-on .section-mint { clip-path: inset(0 var(--cx, 0%) round var(--cr, 0px)); }
+
+/* ---------- The four agents in 3D ---------- */
+.agents-3d { display: none; }
+.has-3d .agents-3d { display: block; position: relative; }
+.has-3d .agents-3d canvas { display: block; width: 100%; height: 100%; cursor: default; }
+.has-3d .agents-3d canvas.is-pointing { cursor: pointer; }
+/* Belgrade's feathered mask: the scene has no box around it, it dissolves into the page. */
+.has-3d .agents-3d .stage3d { position: absolute; inset: 0;
+  -webkit-mask-image: radial-gradient(ellipse 50% 58% at 50% 48%, #000 52%, transparent 100%);
+          mask-image: radial-gradient(ellipse 50% 58% at 50% 48%, #000 52%, transparent 100%); }
+.has-3d .agents-3d .stage3d { opacity: 0; transition: opacity 1200ms var(--ease); }
+.has-3d .agents-3d.is-ready .stage3d { opacity: 1; }
+.agents-3d .hint { position: absolute; left: 0; right: 0; bottom: 18px; text-align: center; font-size: 16px; color: var(--muted); margin: 0; }
+.agents-3d .hint b { color: var(--ink); font-weight: 600; }
+.agents-3d .counter { position: absolute; left: 0; top: 18px; display: flex; gap: 10px; align-items: baseline; font: 500 16px/1 var(--font-text); color: var(--muted); letter-spacing: 0.04em; }
+.agents-3d .counter .n { display: inline-block; height: 1em; line-height: 1; overflow: hidden; color: var(--ink); font-weight: 600; }
+.agents-3d .counter .n span { display: block; line-height: 1; transition: transform 700ms var(--ease); }
+
+.has-3d .agents .agent { transition: opacity 600ms var(--ease), background 600ms var(--ease), transform 600ms var(--ease); }
+.has-3d .agents .agent:not(.is-active) { opacity: 0.42; }
+.has-3d .agents .agent.is-active { background: var(--mint-tint); }
+.has-3d .agents .agent .icon { transition: background 600ms var(--ease); }
+.has-3d .agents .agent.is-active .icon { background: var(--mint); }
+
+@media (min-width: 900px) {
+  .has-3d .agents-layout { display: grid; grid-template-columns: 1.15fr 1fr; gap: 48px; margin-top: 32px; align-items: start; }
+  .has-3d .agents-3d { position: sticky; top: 0; height: 100vh; height: 100svh; }
+  .has-3d .agents { grid-template-columns: 1fr; gap: 0; margin-top: 0; padding: 22vh 0 30vh; }
+  .has-3d .agents .agent { min-height: 52vh; display: flex; flex-direction: column; justify-content: center; margin-bottom: 4vh; }
+}
+@media (max-width: 899px) {
+  .has-3d .agents-layout { margin-top: 24px; }
+  .has-3d .agents-3d { position: sticky; top: 0; z-index: 2; height: 46vh; height: 46svh; background: var(--surface); margin: 0 calc(-1 * var(--gutter)); }
+  .has-3d .agents-3d .hint { display: none; }
+  .has-3d .agents-3d .counter { left: var(--gutter); top: 14px; }
+  .has-3d .agents { margin-top: 8px; padding-bottom: 24vh; }
+  .has-3d .agents .agent { min-height: 44vh; }
+}
+
+/* ---------- Reduced motion: every part of this layer stands still ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .m-on .hero-img img { translate: none; scale: none; }
+  .m-on .section-mint { clip-path: none; }
+  .m-on .hl::before { transform: none; transition: none; }
+  .scroll-progress { display: none; }
+}

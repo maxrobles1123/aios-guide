@@ -1,7 +1,6 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta name="robots" content="noindex, nofollow">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>What AIOS does | Chirag Shah Coaching</title>
@@ -9,7 +8,9 @@
 <link rel="preload" href="fonts/hanken-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/newsreader-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="icon" href="img/logo-mark.png">
+<meta name="robots" content="noindex, nofollow">
 <link rel="stylesheet" href="css/guide.css?v=20">
+<link rel="stylesheet" href="css/motion.css?v=1">
 </head>
 <body>
 <a class="skip-link" id="skip" href="#install">Skip to the main content</a>
@@ -97,11 +98,18 @@
   <div class="section section-white">
     <div class="wrap">
       <h2>Four AI agents. One AIOS.</h2>
+      <div class="agents-layout">
+      <div class="agents-3d" aria-hidden="true">
+        <div class="stage3d"></div>
+        <p class="counter"><span class="n"><span>01<br>02<br>03<br>04</span></span><span>/ 04</span></p>
+        <p class="hint"><b>Scroll</b> to meet each agent</p>
+      </div>
       <div class="agents">
         <div class="agent"><div class="icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#141414" stroke-width="1.5" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="1"/><path d="M3.5 9.5h17M8 3v4M16 3v4M9 14.5l2 2 4-4"/></svg></div><h3>Chief of Staff</h3><p class="line">Start each day knowing where to focus.</p><p>Your Chief of Staff helps organize your day and week around appointments, priorities and commitments.</p></div>
         <div class="agent"><div class="icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#141414" stroke-width="1.5" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c0-3 2.5-5.2 5.5-5.2s5.5 2.2 5.5 5.2"/><circle cx="16.5" cy="9" r="2.6"/><path d="M16 13.9c2.6 0 4.5 2 4.5 4.6"/></svg></div><h3>Prospecting Agent</h3><p class="line">Keep relationships moving.</p><p>Find people worth contacting, prepare thoughtful follow-ups and respond to new inquiries without starting from a blank page.</p></div>
         <div class="agent"><div class="icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#141414" stroke-width="1.5" aria-hidden="true"><path d="M4 10v4h3l7 4V6l-7 4H4z"/><path d="M7 14l1.5 4.5h2L9.5 14.6"/><path d="M17.5 9.5c1 .7 1.5 1.6 1.5 2.5s-.5 1.8-1.5 2.5"/></svg></div><h3>Marketing Agent</h3><p class="line">Create marketing that reflects the home and your voice.</p><p>From listing descriptions to property campaigns and video scripts, AIOS uses the facts you've confirmed.</p></div>
         <div class="agent"><div class="icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#141414" stroke-width="1.5" aria-hidden="true"><rect x="5" y="4.5" width="14" height="16" rx="1"/><path d="M9 3.5h6v3H9zM9 13l2 2 4-4"/></svg></div><h3>Client Experience Agent</h3><p class="line">Walk into appointments prepared and follow through afterward.</p><p>Turn meeting recordings or spoken debriefs into notes, recap drafts and a clearer picture of what comes next.</p></div>
+      </div>
       </div>
       <p style="margin-top:28px"><a class="btn btn-outline" href="playbook.html">See what you can do with each agent</a></p>
     </div>
@@ -324,5 +332,10 @@
 <script src="js/config.js?v=21"></script>
 <script src="js/steps.js?v=20"></script>
 <script src="js/guide.js?v=21"></script>
+<script src="vendor/gsap.min.js"></script>
+<script src="vendor/ScrollTrigger.min.js"></script>
+<script src="vendor/CustomEase.min.js"></script>
+<script src="vendor/lenis.min.js"></script>
+<script src="js/motion.js?v=1"></script>
 </body>
 </html>
